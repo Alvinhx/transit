@@ -1,0 +1,188 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Capitol Hill - Route 8</title>
+    <style>
+        :root {
+            --bg: #000000;
+            --panel: #1a1a1a;
+            --text-yellow: #ffcc00;
+            --text-white: #ffffff;
+            --dim: #555555;
+        }
+
+        body {
+            background-color: var(--bg);
+            color: var(--text-yellow);
+            font-family: 'Helvetica Neue', Helvetica, Arial, sans-serif;
+            margin: 0;
+            padding: 20px;
+            display: flex;
+            flex-direction: column;
+            align-items: center;
+            justify-content: center;
+            height: 100vh;
+            overflow: hidden;
+            text-transform: uppercase;
+        }
+
+        .header {
+            font-size: 1.5rem;
+            letter-spacing: 3px;
+            color: var(--dim);
+            margin-bottom: 20px;
+            border-bottom: 1px solid var(--dim);
+            width: 90%;
+            text-align: center;
+            padding-bottom: 10px;
+        }
+
+        .board {
+            width: 95%;
+            max-width: 800px;
+        }
+
+        .row {
+            display: flex;
+            align-items: center;
+            background: var(--panel);
+            margin-bottom: 10px;
+            padding: 20px;
+            border-radius: 8px;
+            border: 1px solid #333;
+            box-shadow: 0 4px 10px rgba(0,0,0,0.5);
+            /* Retro flip animation */
+            animation: fadeIn 0.5s ease-out;
+        }
+
+        @keyframes fadeIn {
+            from { opacity: 0; transform: translateY(10px); }
+            to { opacity: 1; transform: translateY(0); }
+        }
+
+        .route-box {
+            background: #444;
+            color: white;
+            padding: 10px 15px;
+            border-radius: 4px;
+            font-size: 2.5rem;
+            font-weight: 900;
+            min-width: 60px;
+            text-align: center;
+        }
+
+        .destination {
+            flex-grow: 1;
+            margin-left: 25px;
+            font-size: 1.8rem;
+            font-weight: 700;
+            color: var(--text-white);
+            white-space: nowrap;
+            overflow: hidden;
+            text-overflow: ellipsis;
+        }
+
+        .time-container {
+            text-align: right;
+            min-width: 150px;
+        }
+
+        .minutes {
+            font-size: 3rem;
+            font-weight: 900;
+        }
+
+        .unit {
+            font-size: 1rem;
+            color: var(--dim);
+            margin-left: 5px;
+        }
+
+        .status-now {
+            color: #00ff00;
+            animation: blink 1s infinite;
+        }
+
+        @keyframes blink {
+            50% { opacity: 0.5; }
+        }
+    </style>
+</head>
+<body>
+
+    <div class="header">Capitol Hill • Route 8 Arrivals</div>
+    
+    <div id="transit-board" class="board">
+        <div class="row">
+            <div class="destination">Fetching live data...</div>
+        </div>
+    </div>
+
+    <script>
+        const API_KEY = "TEST"; 
+        // Stop IDs for Route 8 at Capitol Hill Station (Broadway & John)
+        const STOPS = ["1_29270", "1_29262"]; 
+
+        async function getTransitData() {
+            let allArrivals = [];
+
+            for (let stopId of STOPS) {
+                try {
+                    const url = `https://api.pugetsound.onebusaway.org/api/where/arrivals-and-departures-for-stop/${stopId}.json?key=${API_KEY}`;
+                    const response = await fetch(url);
+                    const result = await response.json();
+                    const data = result.data.entry.arrivalsAndDepartures;
+                    
+                    // Filter for only Route 8
+                    const route8 = data.filter(bus => bus.routeShortName === "8");
+                    allArrivals = [...allArrivals, ...route8];
+                } catch (err) {
+                    console.error("Data error:", err);
+                }
+            }
+
+            // Sort by arrival time (closest first)
+            allArrivals.sort((a, b) => {
+                const timeA = a.predictedArrivalTime || a.scheduledArrivalTime;
+                const timeB = b.predictedArrivalTime || b.scheduledArrivalTime;
+                return timeA - timeB;
+            });
+
+            renderBoard(allArrivals.slice(0, 4));
+        }
+
+        function renderBoard(buses) {
+            const container = document.getElementById('transit-board');
+            
+            if (buses.length === 0) {
+                container.innerHTML = '<div class="row"><div class="destination">No upcoming buses</div></div>';
+                return;
+            }
+
+            container.innerHTML = buses.map(bus => {
+                const arrivalMs = bus.predictedArrivalTime || bus.scheduledArrivalTime;
+                const diffMinutes = Math.round((arrivalMs - Date.now()) / 60000);
+                
+                let timeDisplay = diffMinutes <= 0 ? '<span class="status-now">NOW</span>' : diffMinutes;
+                let unitDisplay = diffMinutes > 0 ? '<span class="unit">MIN</span>' : '';
+
+                return `
+                    <div class="row">
+                        <div class="route-box">${bus.routeShortName}</div>
+                        <div class="destination">${bus.tripHeadsign.split(" - ")[0]}</div>
+                        <div class="time-container">
+                            <span class="minutes">${timeDisplay}</span>${unitDisplay}
+                        </div>
+                    </div>
+                `;
+            }).join('');
+        }
+
+        // Refresh every 30 seconds
+        setInterval(getTransitData, 30000);
+        getTransitData();
+    </script>
+</body>
+</html>
