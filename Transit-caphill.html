@@ -3,187 +3,234 @@
 <head>
   <meta charset="UTF-8">
   <meta name="viewport" content="width=device-width, initial-scale=1.0">
-  <title>Transit Departures — Capitol Hill</title>
+  <title>Transit — Capitol Hill</title>
+  <link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Inter:ital,opsz,wght@0,14..32,100..900&display=swap">
   <link rel="stylesheet" href="https://fonts.googleapis.com/icon?family=Material+Icons">
   <style>
 *,*::before,*::after{box-sizing:border-box;margin:0;padding:0}
-:root{--bg:#0d1117;--surface:#161b22;--card-bg:#1c2129;--border:#21262d;--text:#e6edf3;--text-dim:#8b949e;--accent-rail:#3b82f6;--accent-bus:#f59e0b;--accent-streetcar:#10b981;--live:#22c55e;--font-mono:"SF Mono","Cascadia Code","Fira Code","Consolas",monospace;--font-sans:"Inter",-apple-system,BlinkMacSystemFont,"Segoe UI",sans-serif}
-body{background:#000;color:var(--text);font-family:var(--font-sans);display:flex;justify-content:center;align-items:flex-start;min-height:100vh;min-height:100dvh;padding:0}
+:root{--bg:#0d1117;--surface:#161b22;--card-bg:#161b22;--border:#21262d;--text:#e6edf3;--dim:#8b949e;--live:#22c55e;
+--font-mono:"SF Mono","Cascadia Code","Fira Code","Consolas",monospace;
+--font-sans:"Inter",-apple-system,BlinkMacSystemFont,"Segoe UI",sans-serif}
+body{background:#000;color:var(--text);font-family:var(--font-sans);display:flex;justify-content:center;min-height:100vh;min-height:100dvh;padding:0}
 #board{width:100%;height:100vh;height:100dvh;background:var(--bg);overflow:hidden;display:flex;flex-direction:column}
-@media(min-width:600px){body{padding:24px 16px}#board{height:calc(100vh - 48px);height:calc(100dvh - 48px);border:1px solid var(--border);border-radius:12px}}
-header{background:var(--surface);padding:16px 20px 14px;border-bottom:1px solid var(--border);display:flex;justify-content:space-between;align-items:center}
-.station-name{font-size:18px;font-weight:700;letter-spacing:-0.02em}
-.header-meta{display:flex;align-items:center;gap:10px;font-family:var(--font-mono);font-size:13px;color:var(--text-dim)}
-.update-dot{width:7px;height:7px;border-radius:50%;background:var(--live);animation:pulse 2s ease-in-out infinite}
-.update-dot.error{background:#ef4444;animation:none}
+header{background:var(--surface);padding:14px 32px 10px;display:flex;align-items:center;gap:12px}
+.station{font-size:36px;font-weight:700;flex:1}
+.clock{font-family:var(--font-mono);font-size:22px;color:var(--dim)}
+.dot{width:10px;height:10px;border-radius:50%;background:var(--live);animation:pulse 2s ease-in-out infinite}
 @keyframes pulse{0%,100%{opacity:1}50%{opacity:0.3}}
-.category{border-bottom:1px solid var(--border);flex:1;display:flex;flex-direction:column;min-height:0;overflow:hidden}
-.category:last-of-type{border-bottom:none}
-.card-grid{display:flex;flex-wrap:wrap;align-content:flex-start;gap:10px;padding:8px 16px;flex:1;min-height:0;overflow:hidden}
-.dep-card{flex:1 1 280px;height:100px;background:var(--card-bg);border:1px solid var(--border);border-radius:10px;display:flex;flex-direction:row;padding:14px 8px 14px 16px;gap:20px;align-items:center;overflow:hidden}
-.dep-card:hover{background:var(--surface)}
-.card-info{flex:1;display:flex;flex-direction:column;gap:6px;min-width:0;height:100%}
-.badge-row{display:flex;align-items:center;gap:6px}
-.route-badge{font-family:var(--font-mono);font-size:11px;font-weight:700;padding:2px 8px;border-radius:5px;color:#fff;white-space:nowrap}
-.mode-label{font-size:10px;font-weight:500;color:var(--text-dim);text-transform:uppercase}
-.dest-wrap{flex:1;display:flex;align-items:center;min-height:0}
-.dest{font-size:14px;font-weight:500;line-height:1.3;overflow:hidden;display:-webkit-box;-webkit-line-clamp:2;-webkit-box-orient:vertical}
-.eta-area{width:70px;flex-shrink:0;display:flex;flex-direction:column;align-items:center;justify-content:center;gap:0}
-.eta-area .live-icon{font-size:16px;color:var(--live)}.eta-area .sched-label{font-size:9px;color:var(--text-dim)}
-.eta-area .eta-num{font-family:var(--font-mono);font-size:44px;font-weight:700;line-height:1;color:var(--text)}
-.eta-area .eta-num.now{font-size:26px;color:var(--live)}
-.eta-area .eta-num.sched{color:#6b7280}
-.eta-area .eta-unit{font-size:12px;color:var(--text-dim)}
-.loading,.no-data{padding:16px 8px;color:var(--text-dim);font-size:13px;width:100%}
-footer{background:var(--surface);border-top:1px solid var(--border);padding:10px 20px;display:flex;justify-content:space-between;font-size:10px;color:var(--text-dim)}
-footer a{color:var(--accent-rail);text-decoration:none}
-footer a:hover{text-decoration:underline}
-@media(max-width:479px){header{padding:14px 16px 12px}.station-name{font-size:16px}.card-grid{padding:6px 12px;gap:8px}.dep-card{flex:1 1 100%;height:90px;padding:12px 8px 12px 14px;gap:16px}.eta-area .eta-num{font-size:36px}footer{padding:8px 16px}}
-  </style>
+.results{flex:1;display:grid;grid-template-columns:repeat(auto-fill,minmax(600px,1fr));align-content:start;gap:12px;padding:16px;overflow:hidden}
+.card{height:120px;background:var(--card-bg);border:1px solid var(--border);border-radius:16px;display:flex;align-items:center;padding:16px 16px 16px 20px;gap:16px;transition:transform 0.4s ease,opacity 0.3s ease}
+.badge{width:80px;height:80px;border-radius:60px;display:flex;align-items:center;justify-content:center;flex-shrink:0}
+.badge.square{border-radius:16px}
+.badge-num{font-family:var(--font-sans);font-weight:900;font-size:48px}
+.badge-num.sm{font-size:32px}
+.badge-icon{font-size:48px;color:#fff}
+.info{flex:1;display:flex;flex-direction:column;gap:4px;height:80px;min-width:0;overflow:hidden}
+.tag{display:inline-flex;align-items:center;padding:2px 6px;border-radius:4px;font-size:14px;font-weight:700;color:#fff;align-self:flex-start;flex-shrink:0}
+.dest{flex:1;display:flex;align-items:center;font-size:22px;font-weight:500;overflow:hidden;line-height:1.2;min-width:0;word-wrap:break-word;white-space:normal}
+.etas{display:flex;gap:8px;flex-shrink:0}
+.pill{width:84px;height:84px;border-radius:14px;background:#242930;display:flex;flex-direction:column;align-items:center;justify-content:center;position:relative}
+.pill.now{background:var(--live);flex-direction:row;gap:3px}
+.pill-num{font-family:var(--font-sans);font-size:54px;font-weight:700;line-height:1;color:var(--text)}
+.pill.sched .pill-num{color:var(--dim)}
+.pill.now .pill-num{font-size:28px;font-weight:800;color:#fff}
+.pill-min{font-size:8px;font-weight:500;color:var(--dim);margin-top:-6px}
+.pill.now .pill-min{display:none}
+.pill-live{position:absolute;top:4px;right:5px;font-size:15px;color:var(--live)}
+footer{background:var(--surface);padding:6px 32px;display:flex;justify-content:space-between;font-size:12px;color:var(--dim)}
+footer a{color:#3b82f6;text-decoration:none}
+.loading{padding:20px;color:var(--dim);font-size:14px}
+</style>
 </head>
 <body>
-  <div id="board">
-    <header>
-      <div class="station-name">Capitol Hill Station</div>
-      <div class="header-meta">
-        <span class="clock" id="clock"></span>
-        <span class="update-dot" id="updateDot" title="Live"></span>
-      </div>
-    </header>
-    <div class="category" id="bus-section">
-      <div class="card-grid" id="bus-departures"><div class="loading">Loading…</div></div>
-    </div>
-    <div class="category" id="rail-section">
-      <div class="card-grid" id="rail-departures"><div class="loading">Loading…</div></div>
-    </div>
-    <div class="category" id="streetcar-section">
-      <div class="card-grid" id="streetcar-departures"><div class="loading">Loading…</div></div>
-    </div>
-    <footer>
-      <span>Data from <a href="https://onebusaway.org" target="_blank" rel="noopener">OneBusAway</a></span>
-      <span id="lastUpdate"></span>
-    </footer>
-  </div>
+<div id="board">
+  <header>
+    <div class="station">Capitol Hill</div>
+    <div class="clock" id="clock"></div>
+    <div class="dot" id="dot"></div>
+  </header>
+  <div class="results" id="results"><div class="loading">Loading…</div></div>
+  <footer>
+    <span>Data from <a href="https://onebusaway.org" target="_blank">OneBusAway</a></span>
+    <span id="updated"></span>
+  </footer>
+</div>
 
 <script>
-const OBA_BASE="https://api.pugetsound.onebusaway.org/api/where";
-const OBA_KEY="TEST";
-const REFRESH_INTERVAL=30000;
-const MINUTES_AFTER=60;
-
+const OBA="https://api.pugetsound.onebusaway.org/api/where";
+const KEY="TEST";
 const STOPS={
-  rail:[{id:"40_99610"},{id:"40_99603"}],
-  bus:[{id:"1_11180"},{id:"1_11050"},{id:"1_29270"},{id:"1_29262"},{id:"1_11060"}],
-  streetcar:[{id:"1_11175"}],
+  rail:["40_99610","40_99603"],
+  bus:["1_11180","1_11050","1_29270","1_29262","1_11060"],
+  streetcar:["1_11175"],
 };
 
-const MODE_LABELS={rail:"Light Rail",bus:"Bus",streetcar:"Streetcar"};
-
-function classifyRoute(routeType,agencyId){
-  if(routeType===0)return agencyId==="40"?"rail":"streetcar";
-  if(routeType===1||routeType===2)return"rail";
-  return"bus";
+// Route number parser: "1 Line" → "1", "First Hill Streetcar" → icon
+function parseRoute(shortName,routeType,agencyId){
+  let num=shortName.replace(/\s*Line$/i,"").replace(/\s*Streetcar$/i,"").trim();
+  return num;
 }
 
-async function fetchArrivals(stopId){
-  const url=`${OBA_BASE}/arrivals-and-departures-for-stop/${stopId}.json?key=${OBA_KEY}&minutesBefore=0&minutesAfter=${MINUTES_AFTER}`;
-  const res=await fetch(url);
-  if(!res.ok)throw new Error(`API error ${res.status}`);
-  const json=await res.json();
-  const entry=json.data.entry;
-  const refs=json.data.references;
-  const routeMap={};
-  for(const r of refs.routes||[])routeMap[r.id]=r;
-  return entry.arrivalsAndDepartures.map(a=>{
-    const route=routeMap[a.routeId]||{};
-    const predicted=a.predictedDepartureTime||a.predictedArrivalTime;
-    const scheduled=a.scheduledDepartureTime||a.scheduledArrivalTime;
-    const isLive=predicted>0;
-    const arrivalMs=isLive?predicted:scheduled;
-    let shortName=route.shortName||route.id||"?";
-    shortName=shortName.replace(/\s*Streetcar$/i,"");
-    return{routeShort:shortName,routeLong:route.longName||"",headsign:a.tripHeadsign||route.longName||"",arrivalMs,isLive,
-      routeType:route.type,mode:classifyRoute(route.type,route.agencyId),
-      routeColor:route.color?`#${route.color}`:null,
-      routeTextColor:route.textColor?`#${route.textColor}`:null,stopId};
+// Classify transit type
+function classify(type,agencyId,shortName){
+  if(type===0&&agencyId==="40")return{mode:"rail",tag:"Light Rail",badge:"round"};
+  if(type===0)return{mode:"streetcar",tag:shortName.replace(/\s*Streetcar$/i," Streetcar").trim(),badge:"square"};
+  if(type===2&&agencyId==="96")return{mode:"monorail",tag:"Monorail",badge:"square"};
+  if(type===3&&agencyId==="40")return{mode:"express",tag:"ST Express",badge:"square"};
+  if(type===3&&shortName.match(/Line$/i))return{mode:"rapid",tag:"RapidRide",badge:"square"};
+  return{mode:"bus",tag:"KC Bus",badge:"square"};
+}
+
+async function fetchStop(id){
+  const r=await fetch(`${OBA}/arrivals-and-departures-for-stop/${id}.json?key=${KEY}&minutesBefore=0&minutesAfter=60`);
+  if(!r.ok)return[];
+  const j=await r.json();
+  const routes={};for(const rt of j.data.references.routes||[])routes[rt.id]=rt;
+  return j.data.entry.arrivalsAndDepartures.map(a=>{
+    const rt=routes[a.routeId]||{};
+    const pred=a.predictedDepartureTime||a.predictedArrivalTime;
+    const sched=a.scheduledDepartureTime||a.scheduledArrivalTime;
+    const live=pred>0;
+    const cls=classify(rt.type,rt.agencyId,rt.shortName||"");
+    return{
+      route:parseRoute(rt.shortName||"?",rt.type,rt.agencyId),
+      headsign:a.tripHeadsign||rt.longName||"",
+      ms:live?pred:sched,live,
+      color:rt.color?`#${rt.color}`:"#666",
+      textColor:rt.textColor?`#${rt.textColor}`:"#fff",
+      ...cls,
+    };
   });
 }
 
 async function fetchAll(){
-  const allIds=[...STOPS.rail,...STOPS.bus,...STOPS.streetcar].map(s=>s.id);
-  const results=await Promise.allSettled(allIds.map(id=>fetchArrivals(id)));
-  const deps=[];
-  for(const r of results)if(r.status==="fulfilled")deps.push(...r.value);
-  const seen=new Set();const unique=[];
-  for(const d of deps){const k=`${d.routeShort}-${d.headsign}-${d.arrivalMs}`;if(!seen.has(k)){seen.add(k);unique.push(d);}}
-  unique.sort((a,b)=>a.arrivalMs-b.arrivalMs);
-  return unique;
+  const ids=[...STOPS.rail,...STOPS.bus,...STOPS.streetcar];
+  const res=await Promise.allSettled(ids.map(fetchStop));
+  const deps=[];for(const r of res)if(r.status==="fulfilled")deps.push(...r.value);
+  // Group by route+mode+direction (normalize headsign to first word for stability)
+  const groups={};
+  for(const d of deps){
+    const dirKey=d.headsign.split(/[\s-]/)[0]||d.headsign; // stable first word
+    const k=d.route+"|"+d.mode+"|"+dirKey;
+    if(!groups[k])groups[k]={...d,etas:[]};
+    groups[k].etas.push({ms:d.ms,live:d.live});
+    // Keep the longest headsign for display
+    if(d.headsign.length>groups[k].headsign.length)groups[k].headsign=d.headsign;
+  }
+  const list=Object.values(groups);
+  for(const g of list){g.etas.sort((a,b)=>a.ms-b.ms);g.etas=g.etas.slice(0,3);}
+  list.sort((a,b)=>(a.etas[0]?.ms||Infinity)-(b.etas[0]?.ms||Infinity));
+  return list;
 }
 
-function formatEta(ms){const m=Math.round((ms-Date.now())/60000);return m<=0?{text:"NOW",isNow:true}:{text:`${m}`,isNow:false};}
+function etaText(ms){const m=Math.round((ms-Date.now())/60000);return m<=0?"NOW":`${m}`;}
 
-function renderCard(dep){
-  const eta=formatEta(dep.arrivalMs);
-  const modeLabel=MODE_LABELS[dep.mode]||dep.mode;
-  const badgeAttr=dep.routeColor
-    ?`class="route-badge" style="background:${dep.routeColor};color:${dep.routeTextColor||'#fff'}"`
-    :`class="route-badge"`;
-  const liveIndicator=eta.isNow?"":dep.isLive?'<span class="material-icons live-icon">rss_feed</span>':'<span class="sched-label">Scheduled</span>';
-  const etaNum=eta.isNow?'<span class="eta-num now">NOW</span>':dep.isLive?`<span class="eta-num">${eta.text}</span>`:`<span class="eta-num sched">${eta.text}</span>`;
-  const etaUnit=eta.isNow?"":'<span class="eta-unit">min</span>';
-  return`<div class="dep-card"><div class="card-info"><div class="badge-row"><div ${badgeAttr}>${dep.routeShort}</div><span class="mode-label">${modeLabel.toUpperCase()}</span></div><div class="dest-wrap"><div class="dest">${dep.headsign}</div></div></div><div class="eta-area">${liveIndicator}${etaNum}${etaUnit}</div></div>`;
+function renderPill(eta){
+  const isNow=etaText(eta.ms)==="NOW";
+  const cls=isNow?"now":eta.live?"live":"sched";
+  const num=etaText(eta.ms);
+  let indicator="";
+  if(!isNow&&eta.live)indicator=`<span class="material-icons pill-live">rss_feed</span>`;
+  return`<div class="pill ${cls}">${indicator}<span class="pill-num">${num}</span><span class="pill-min">min</span></div>`;
 }
 
-function renderSection(id,deps){
-  const el=document.getElementById(id);
-  if(!deps.length){el.innerHTML='<div class="no-data">No upcoming departures</div>';return;}
-  const s=getComputedStyle(el);
-  const pL=parseFloat(s.paddingLeft)||16,pR=parseFloat(s.paddingRight)||16;
-  const pT=parseFloat(s.paddingTop)||4,pB=parseFloat(s.paddingBottom)||12;
-  const gap=parseFloat(s.gap)||8;
-  const aW=el.clientWidth-pL-pR,aH=el.clientHeight-pT-pB;
-  const cardW=280,cardH=100;
-  const cols=Math.max(1,Math.floor((aW+gap)/(cardW+gap)));
-  const rows=Math.max(1,Math.floor((aH+gap)/(cardH+gap)));
-  el.innerHTML=deps.slice(0,cols*rows).map(renderCard).join("");
+function renderCard(g){
+  const isIcon=g.badge==="square"&&(g.mode==="streetcar"||g.mode==="monorail");
+  const numClass=g.route.length>2?"sm":"";
+  const badgeInner=isIcon
+    ?`<span class="material-icons badge-icon">${g.mode==="monorail"?"train":"tram"}</span>`
+    :`<span class="badge-num ${numClass}" style="color:${g.textColor}">${g.route}</span>`;
+  const pills=g.etas.map(renderPill).join("");
+  return`<div class="card" data-key="${g.route}|${g.headsign}|${g.mode}">
+    <div class="badge ${g.badge}" style="background:${g.color}">
+      ${badgeInner}
+    </div>
+    <div class="info">
+      <div class="tag" style="background:${g.color};color:${g.textColor}">${g.tag}</div>
+      <div class="dest">${g.headsign}</div>
+    </div>
+    <div class="etas">${pills}</div>
+  </div>`;
 }
 
-function updateClock(){
-  document.getElementById("clock").textContent=new Date().toLocaleTimeString("en-US",{hour:"2-digit",minute:"2-digit",hour12:true});
-}
-
-const lastData={rail:[],bus:[],streetcar:[]};
+const cache=[];
+const routeCache={}; // keyed by route+direction, persists between refreshes
 
 async function update(){
-  const dot=document.getElementById("updateDot");
+  document.getElementById("updated").textContent="Updating...";
   try{
-    const deps=await fetchAll();
-    const rail=deps.filter(d=>d.mode==="rail");
-    const bus=deps.filter(d=>d.mode==="bus");
-    const streetcar=deps.filter(d=>d.mode==="streetcar");
-    if(rail.length)lastData.rail=rail;
-    if(bus.length)lastData.bus=bus;
-    if(streetcar.length)lastData.streetcar=streetcar;
-    renderSection("rail-departures",lastData.rail);
-    renderSection("bus-departures",lastData.bus);
-    renderSection("streetcar-departures",lastData.streetcar);
-    dot.classList.remove("error");
-    document.getElementById("lastUpdate").textContent=`Updated ${new Date().toLocaleTimeString("en-US",{hour:"2-digit",minute:"2-digit",second:"2-digit"})}`;
-  }catch(e){
-    console.error("Update failed:",e);dot.classList.add("error");
-    renderSection("rail-departures",lastData.rail);
-    renderSection("bus-departures",lastData.bus);
-    renderSection("streetcar-departures",lastData.streetcar);
-  }
+    const groups=await fetchAll();
+    // Merge new data into persistent cache
+    for(const g of groups){
+      const dirKey=g.headsign.split(/[\s-]/)[0]||g.headsign;
+      const k=g.route+"|"+g.mode+"|"+dirKey;
+      routeCache[k]={...g};
+    }
+    // Remove routes whose last ETA is more than 30 min in the past
+    const now=Date.now();
+    for(const k in routeCache){
+      const g=routeCache[k];
+      const latest=g.etas[g.etas.length-1];
+      if(latest&&latest.ms<now-30*60000)delete routeCache[k];
+    }
+    // Sort by earliest upcoming ETA
+    // Sort: prioritized routes first, then by earliest ETA
+    const priority=["1","2","8","49","11","12"];
+    const sorted=Object.values(routeCache).sort((a,b)=>{
+      const aP=priority.indexOf(a.route);
+      const bP=priority.indexOf(b.route);
+      const aPri=aP>=0?0:1;
+      const bPri=bP>=0?0:1;
+      if(aPri!==bPri)return aPri-bPri;
+      const aMs=a.etas[0]?.ms||Infinity;
+      const bMs=b.etas[0]?.ms||Infinity;
+      return aMs-bMs;
+    });
+    cache.length=0;cache.push(...sorted);
+  }catch(e){console.error(e);}
+  const el=document.getElementById("results");
+  const gap=12;const cardH=120;const avail=el.clientHeight;
+  const cols=getComputedStyle(el).gridTemplateColumns.split(" ").length;
+  const rows=Math.max(1,Math.floor((avail+gap)/(cardH+gap)));
+  const maxCards=cols*rows;
+  el.innerHTML=cache.length?cache.slice(0,maxCards).map(renderCard).join(""):'<div class="loading" style="grid-column:1/-1;text-align:center;font-size:20px;padding:40px">No transit results found</div>';
+  document.getElementById("updated").textContent=`Updated ${new Date().toLocaleTimeString("en-US",{hour:"2-digit",minute:"2-digit",second:"2-digit"})}`;
+  document.getElementById("dot").classList.remove("error");
 }
 
-updateClock();setInterval(updateClock,1000);
-update();setInterval(update,REFRESH_INTERVAL);
-let resizeTimer;window.addEventListener("resize",()=>{clearTimeout(resizeTimer);resizeTimer=setTimeout(()=>{
-  renderSection("rail-departures",lastData.rail);
-  renderSection("bus-departures",lastData.bus);
-  renderSection("streetcar-departures",lastData.streetcar);
-},200);});
+function animatedUpdate(){
+  const el=document.getElementById("results");
+  // FLIP: record old positions
+  const oldCards={};
+  el.querySelectorAll(".card").forEach(c=>{
+    const key=c.dataset.key;
+    if(key)oldCards[key]=c.getBoundingClientRect();
+  });
+  // Run update
+  update().then(()=>{
+    // FLIP: get new positions and animate
+    el.querySelectorAll(".card").forEach(c=>{
+      const key=c.dataset.key;
+      if(!key||!oldCards[key])return;
+      const oldRect=oldCards[key];
+      const newRect=c.getBoundingClientRect();
+      const dx=oldRect.left-newRect.left;
+      const dy=oldRect.top-newRect.top;
+      if(Math.abs(dx)<1&&Math.abs(dy)<1)return;
+      c.style.transition="none";
+      c.style.transform=`translate(${dx}px,${dy}px)`;
+      requestAnimationFrame(()=>{
+        c.style.transition="transform 0.4s ease";
+        c.style.transform="";
+      });
+    });
+  });
+}
+
+function tick(){document.getElementById("clock").textContent=new Date().toLocaleTimeString("en-US",{hour:"2-digit",minute:"2-digit",hour12:true});}
+tick();setInterval(tick,1000);
+update();setInterval(animatedUpdate,30000);
+let rt;window.addEventListener("resize",()=>{clearTimeout(rt);rt=setTimeout(update,200);});
 </script>
 </body>
 </html>
