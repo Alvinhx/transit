@@ -4,6 +4,11 @@
   <meta charset="UTF-8">
   <meta name="viewport" content="width=device-width, initial-scale=1.0">
   <title>Transit — Capitol Hill</title>
+  <link rel="manifest" href="manifest.json">
+  <meta name="theme-color" content="#0d1117">
+  <meta name="apple-mobile-web-app-capable" content="yes">
+  <meta name="apple-mobile-web-app-status-bar-style" content="black-translucent">
+  <link rel="apple-touch-icon" href="icon-192.png">
   <link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Inter:ital,opsz,wght@0,14..32,100..900&display=swap">
   <link rel="stylesheet" href="https://fonts.googleapis.com/icon?family=Material+Icons">
   <style>
@@ -18,7 +23,7 @@ header{background:var(--surface);padding:14px 32px 10px;display:flex;align-items
 .clock{font-family:var(--font-mono);font-size:22px;color:var(--dim)}
 .dot{width:10px;height:10px;border-radius:50%;background:var(--live);animation:pulse 2s ease-in-out infinite}
 @keyframes pulse{0%,100%{opacity:1}50%{opacity:0.3}}
-.results{flex:1;display:grid;grid-template-columns:repeat(auto-fill,minmax(min(600px,100%),1fr));align-content:start;gap:12px;padding:16px;overflow:hidden}
+.results{flex:1;display:grid;grid-template-columns:repeat(auto-fill,minmax(600px,1fr));align-content:start;gap:12px;padding:16px;overflow:hidden}
 .card{height:120px;background:var(--card-bg);border:1px solid var(--border);border-radius:16px;display:flex;align-items:center;padding:16px 16px 16px 20px;gap:16px;transition:transform 0.4s ease,opacity 0.3s ease}
 .badge{width:80px;height:80px;border-radius:60px;display:flex;align-items:center;justify-content:center;flex-shrink:0}
 .badge.square{border-radius:16px}
@@ -231,6 +236,7 @@ function tick(){document.getElementById("clock").textContent=new Date().toLocale
 tick();setInterval(tick,1000);
 update();setInterval(animatedUpdate,30000);
 let rt;window.addEventListener("resize",()=>{clearTimeout(rt);rt=setTimeout(update,200);});
+if('serviceWorker' in navigator){navigator.serviceWorker.register('./sw.js');}
 </script>
 </body>
 </html>

@@ -3,7 +3,12 @@
 <head>
   <meta charset="UTF-8">
   <meta name="viewport" content="width=device-width, initial-scale=1.0">
-  <title>Transit — Capitol Hill</title>
+  <title>Transit — Lynnwood City Center</title>
+  <link rel="manifest" href="manifest.json">
+  <meta name="theme-color" content="#0d1117">
+  <meta name="apple-mobile-web-app-capable" content="yes">
+  <meta name="apple-mobile-web-app-status-bar-style" content="black-translucent">
+  <link rel="apple-touch-icon" href="icon-192.png">
   <link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Inter:ital,opsz,wght@0,14..32,100..900&display=swap">
   <link rel="stylesheet" href="https://fonts.googleapis.com/icon?family=Material+Icons">
   <style>
@@ -18,7 +23,7 @@ header{background:var(--surface);padding:14px 32px 10px;display:flex;align-items
 .clock{font-family:var(--font-mono);font-size:22px;color:var(--dim)}
 .dot{width:10px;height:10px;border-radius:50%;background:var(--live);animation:pulse 2s ease-in-out infinite}
 @keyframes pulse{0%,100%{opacity:1}50%{opacity:0.3}}
-.results{flex:1;display:grid;grid-template-columns:repeat(auto-fill,minmax(min(600px,100%),1fr));align-content:start;gap:12px;padding:16px;overflow:hidden}
+.results{flex:1;display:grid;grid-template-columns:repeat(auto-fill,minmax(600px,1fr));align-content:start;gap:12px;padding:16px;overflow:hidden}
 .card{height:120px;background:var(--card-bg);border:1px solid var(--border);border-radius:16px;display:flex;align-items:center;padding:16px 16px 16px 20px;gap:16px;transition:transform 0.4s ease,opacity 0.3s ease}
 .badge{width:80px;height:80px;border-radius:60px;display:flex;align-items:center;justify-content:center;flex-shrink:0}
 .badge.square{border-radius:16px}
@@ -45,7 +50,7 @@ footer a{color:#3b82f6;text-decoration:none}
 <body>
 <div id="board">
   <header>
-    <div class="station">Capitol Hill</div>
+    <div class="station">Lynnwood City Center</div>
     <div class="clock" id="clock"></div>
     <div class="dot" id="dot"></div>
   </header>
@@ -60,25 +65,20 @@ footer a{color:#3b82f6;text-decoration:none}
 const OBA="https://api.pugetsound.onebusaway.org/api/where";
 const KEY="TEST";
 const STOPS={
-  rail:["40_99610","40_99603"],
-  bus:["1_11180","1_11050","1_29270","1_29262","1_11060"],
-  streetcar:["1_11175"],
+  rail:["40_N23-T1","40_N23-T2"],
+  bus:["29_2035","29_2107","29_2108","29_2109","29_2110","29_2115","29_2116","29_2117","29_2119","29_2167","29_2168","29_3311"],
+  express:["29_2113","29_2118","29_2422","29_2543","29_2114","29_3227"],
 };
 
-// Route number parser: "1 Line" → "1", "First Hill Streetcar" → icon
-function parseRoute(shortName,routeType,agencyId){
-  let num=shortName.replace(/\s*Line$/i,"").replace(/\s*Streetcar$/i,"").trim();
-  return num;
+function parseRoute(shortName){
+  return shortName.replace(/\s*Line$/i,"").replace(/\s*Streetcar$/i,"").trim();
 }
 
-// Classify transit type
 function classify(type,agencyId,shortName){
   if(type===0&&agencyId==="40")return{mode:"rail",tag:"Light Rail",badge:"round"};
-  if(type===0)return{mode:"streetcar",tag:shortName.replace(/\s*Streetcar$/i," Streetcar").trim(),badge:"square"};
-  if(type===2&&agencyId==="96")return{mode:"monorail",tag:"Monorail",badge:"square"};
   if(type===3&&agencyId==="40")return{mode:"express",tag:"ST Express",badge:"square"};
-  if(type===3&&shortName.match(/Line$/i))return{mode:"rapid",tag:"RapidRide",badge:"square"};
-  return{mode:"bus",tag:"KC Bus",badge:"square"};
+  if(type===3&&(shortName||"").match(/^Swift/i))return{mode:"swift",tag:shortName,badge:"square"};
+  return{mode:"bus",tag:"Community Transit",badge:"square"};
 }
 
 async function fetchStop(id){
@@ -93,7 +93,7 @@ async function fetchStop(id){
     const live=pred>0;
     const cls=classify(rt.type,rt.agencyId,rt.shortName||"");
     return{
-      route:parseRoute(rt.shortName||"?",rt.type,rt.agencyId),
+      route:parseRoute(rt.shortName||"?"),
       headsign:a.tripHeadsign||rt.longName||"",
       ms:live?pred:sched,live,
       color:rt.color?`#${rt.color}`:"#666",
@@ -104,17 +104,15 @@ async function fetchStop(id){
 }
 
 async function fetchAll(){
-  const ids=[...STOPS.rail,...STOPS.bus,...STOPS.streetcar];
+  const ids=[...STOPS.rail,...STOPS.bus,...STOPS.express];
   const res=await Promise.allSettled(ids.map(fetchStop));
   const deps=[];for(const r of res)if(r.status==="fulfilled")deps.push(...r.value);
-  // Group by route+mode+direction (normalize headsign to first word for stability)
   const groups={};
   for(const d of deps){
-    const dirKey=d.headsign.split(/[\s-]/)[0]||d.headsign; // stable first word
+    const dirKey=d.headsign.split(/[\s-]/)[0]||d.headsign;
     const k=d.route+"|"+d.mode+"|"+dirKey;
     if(!groups[k])groups[k]={...d,etas:[]};
     groups[k].etas.push({ms:d.ms,live:d.live});
-    // Keep the longest headsign for display
     if(d.headsign.length>groups[k].headsign.length)groups[k].headsign=d.headsign;
   }
   const list=Object.values(groups);
@@ -135,13 +133,13 @@ function renderPill(eta){
 }
 
 function renderCard(g){
-  const isIcon=g.badge==="square"&&(g.mode==="streetcar"||g.mode==="monorail");
+  const isIcon=g.mode==="streetcar"||g.mode==="monorail";
   const numClass=g.route.length>2?"sm":"";
   const badgeInner=isIcon
     ?`<span class="material-icons badge-icon">${g.mode==="monorail"?"train":"tram"}</span>`
     :`<span class="badge-num ${numClass}" style="color:${g.textColor}">${g.route}</span>`;
   const pills=g.etas.map(renderPill).join("");
-  return`<div class="card" data-key="${g.route}|${g.headsign}|${g.mode}">
+  return`<div class="card">
     <div class="badge ${g.badge}" style="background:${g.color}">
       ${badgeInner}
     </div>
@@ -154,34 +152,24 @@ function renderCard(g){
 }
 
 const cache=[];
-const routeCache={}; // keyed by route+direction, persists between refreshes
+const routeCache={};
 
 async function update(){
   document.getElementById("updated").textContent="Updating...";
   try{
     const groups=await fetchAll();
-    // Merge new data into persistent cache
     for(const g of groups){
       const dirKey=g.headsign.split(/[\s-]/)[0]||g.headsign;
       const k=g.route+"|"+g.mode+"|"+dirKey;
       routeCache[k]={...g};
     }
-    // Remove routes whose last ETA is more than 30 min in the past
     const now=Date.now();
     for(const k in routeCache){
       const g=routeCache[k];
       const latest=g.etas[g.etas.length-1];
       if(latest&&latest.ms<now-30*60000)delete routeCache[k];
     }
-    // Sort by earliest upcoming ETA
-    // Sort: prioritized routes first, then by earliest ETA
-    const priority=["1","2","8","49","11","12"];
     const sorted=Object.values(routeCache).sort((a,b)=>{
-      const aP=priority.indexOf(a.route);
-      const bP=priority.indexOf(b.route);
-      const aPri=aP>=0?0:1;
-      const bPri=bP>=0?0:1;
-      if(aPri!==bPri)return aPri-bPri;
       const aMs=a.etas[0]?.ms||Infinity;
       const bMs=b.etas[0]?.ms||Infinity;
       return aMs-bMs;
@@ -195,42 +183,13 @@ async function update(){
   const maxCards=cols*rows;
   el.innerHTML=cache.length?cache.slice(0,maxCards).map(renderCard).join(""):'<div class="loading" style="grid-column:1/-1;text-align:center;font-size:20px;padding:40px">No transit results found</div>';
   document.getElementById("updated").textContent=`Updated ${new Date().toLocaleTimeString("en-US",{hour:"2-digit",minute:"2-digit",second:"2-digit"})}`;
-  document.getElementById("dot").classList.remove("error");
-}
-
-function animatedUpdate(){
-  const el=document.getElementById("results");
-  // FLIP: record old positions
-  const oldCards={};
-  el.querySelectorAll(".card").forEach(c=>{
-    const key=c.dataset.key;
-    if(key)oldCards[key]=c.getBoundingClientRect();
-  });
-  // Run update
-  update().then(()=>{
-    // FLIP: get new positions and animate
-    el.querySelectorAll(".card").forEach(c=>{
-      const key=c.dataset.key;
-      if(!key||!oldCards[key])return;
-      const oldRect=oldCards[key];
-      const newRect=c.getBoundingClientRect();
-      const dx=oldRect.left-newRect.left;
-      const dy=oldRect.top-newRect.top;
-      if(Math.abs(dx)<1&&Math.abs(dy)<1)return;
-      c.style.transition="none";
-      c.style.transform=`translate(${dx}px,${dy}px)`;
-      requestAnimationFrame(()=>{
-        c.style.transition="transform 0.4s ease";
-        c.style.transform="";
-      });
-    });
-  });
 }
 
 function tick(){document.getElementById("clock").textContent=new Date().toLocaleTimeString("en-US",{hour:"2-digit",minute:"2-digit",hour12:true});}
 tick();setInterval(tick,1000);
-update();setInterval(animatedUpdate,30000);
+update();setInterval(update,30000);
 let rt;window.addEventListener("resize",()=>{clearTimeout(rt);rt=setTimeout(update,200);});
+if('serviceWorker' in navigator){navigator.serviceWorker.register('./sw.js');}
 </script>
 </body>
 </html>
