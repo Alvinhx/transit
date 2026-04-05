@@ -85,7 +85,7 @@ footer a{color:#3b82f6;text-decoration:none}
   </header>
   <div class="results" id="results"><div class="loading">Loading…</div></div>
   <footer>
-    <span>Data from <a href="https://onebusaway.org" target="_blank">OneBusAway</a> · v3.0</span>
+    <span>Data from <a href="https://onebusaway.org" target="_blank">OneBusAway</a> · v3.1</span>
     <span id="updated"></span>
   </footer>
 </div>
@@ -106,7 +106,7 @@ function parseRoute(shortName){
 function classify(type,agencyId,shortName){
   if(type===0&&agencyId==="40")return{mode:"rail",tag:"Light Rail",badge:"round"};
   if(type===3&&agencyId==="40")return{mode:"express",tag:"ST Express",badge:"square"};
-  if(type===3&&(shortName||"").match(/^Swift/i))return{mode:"swift",tag:shortName,badge:"square"};
+  if(type===3&&(shortName||"").match(/^Swift/i))return{mode:"swift",tag:shortName,badge:"square",isSwift:true};
   return{mode:"bus",tag:"Community Transit",badge:"square"};
 }
 
@@ -200,10 +200,10 @@ function renderPill(eta){
 }
 
 function renderCard(g){
-  const isIcon=g.mode==="streetcar"||g.mode==="monorail";
+  const isIcon=g.mode==="streetcar"||g.mode==="monorail"||g.isSwift;
   const numClass=g.route.length>2?"sm":"";
   const badgeInner=isIcon
-    ?`<span class="material-icons badge-icon">${g.mode==="monorail"?"train":"tram"}</span>`
+    ?`<span class="material-icons badge-icon">${g.mode==="monorail"?"train":g.mode==="streetcar"?"tram":"directions_bus"}</span>`
     :`<span class="badge-num ${numClass}" style="color:${g.textColor}">${g.route}</span>`;
   const pills=g.nextDayTimes
     ?`<div class="next-day-times"><span>${formatTime(g.nextDayTimes[0])}</span></div>`
@@ -270,8 +270,50 @@ async function update(){
 }
 
 function tick(){document.getElementById("clock").textContent=new Date().toLocaleTimeString("en-US",{hour:"2-digit",minute:"2-digit",hour12:true});}
+
+async function preload(){
+  const allStopIds=[...STOPS.rail,...STOPS.bus,...STOPS.express];
+  const now=Date.now();
+  const results=await Promise.allSettled(allStopIds.map(async id=>{
+    const r=await fetch(`${OBA}/schedule-for-stop/${id}.json?key=${KEY}`);
+    if(!r.ok)return[];
+    const j=await r.json();
+    const refs={};for(const rt of j.data.references.routes||[])refs[rt.id]=rt;
+    const items=[];
+    for(const sr of j.data.entry.stopRouteSchedules||[]){
+      const rt=refs[sr.routeId]||{};
+      const cls=classify(rt.type,rt.agencyId,rt.shortName||"");
+      for(const dir of sr.stopRouteDirectionSchedules||[]){
+        const times=(dir.scheduleStopTimes||[]).filter(t=>(t.arrivalTime||t.departureTime)>now);
+        if(!times.length)continue;
+        items.push({
+          route:parseRoute(rt.shortName||"?"),
+          headsign:dir.tripHeadsign||rt.longName||"",
+          color:rt.color?`#${rt.color}`:"#666",
+          textColor:rt.textColor?`#${rt.textColor}`:"#fff",
+          ...cls,
+        });
+      }
+    }
+    return items;
+  }));
+  for(const r of results){
+    if(r.status!=="fulfilled")continue;
+    for(const item of r.value){
+      const dirKey=item.headsign.split(/[\s-]/)[0]||item.headsign;
+      const k=item.route+"|"+item.mode+"|"+dirKey;
+      if(!routeCache[k])routeCache[k]={...item,etas:[]};
+    }
+  }
+  const sorted=Object.values(routeCache).sort((a,b)=>(a.etas[0]?.ms||Infinity)-(b.etas[0]?.ms||Infinity));
+  cache.length=0;cache.push(...sorted);
+  const el=document.getElementById("results");
+  el.innerHTML=cache.map(renderCard).join("");
+  document.getElementById("updated").textContent="Schedule loaded";
+}
+
 tick();setInterval(tick,1000);
-update();setInterval(update,30000);
+preload().then(()=>update());setInterval(update,30000);
 let rt;window.addEventListener("resize",()=>{clearTimeout(rt);rt=setTimeout(update,200);});
 </script>
 </body>
