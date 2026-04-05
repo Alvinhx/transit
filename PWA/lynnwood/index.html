@@ -23,7 +23,7 @@ header{background:var(--surface);padding:14px 32px 10px;display:flex;align-items
 .clock{font-family:var(--font-mono);font-size:22px;color:var(--dim)}
 .dot{width:10px;height:10px;border-radius:50%;background:var(--live);animation:pulse 2s ease-in-out infinite}
 @keyframes pulse{0%,100%{opacity:1}50%{opacity:0.3}}
-.results{flex:1;display:grid;grid-template-columns:repeat(auto-fill,minmax(600px,1fr));align-content:start;gap:12px;padding:16px;overflow:hidden}
+.results{flex:1;display:grid;grid-template-columns:repeat(auto-fill,minmax(min(600px,100%),1fr));align-content:start;gap:12px;padding:16px;overflow-y:auto;overflow-x:hidden}
 .card{height:120px;background:var(--card-bg);border:1px solid var(--border);border-radius:16px;display:flex;align-items:center;padding:16px 16px 16px 20px;gap:16px;transition:transform 0.4s ease,opacity 0.3s ease}
 .badge{width:80px;height:80px;border-radius:60px;display:flex;align-items:center;justify-content:center;flex-shrink:0}
 .badge.square{border-radius:16px}
@@ -42,9 +42,43 @@ header{background:var(--surface);padding:14px 32px 10px;display:flex;align-items
 .pill-min{font-size:8px;font-weight:500;color:var(--dim);margin-top:-6px}
 .pill.now .pill-min{display:none}
 .pill-live{position:absolute;top:4px;right:5px;font-size:15px;color:var(--live)}
+.next-day-times{display:flex;gap:12px;align-items:center;color:var(--dim);font-size:28px;font-weight:700;font-family:var(--font-sans)}
 footer{background:var(--surface);padding:6px 32px;display:flex;justify-content:space-between;font-size:12px;color:var(--dim)}
 footer a{color:#3b82f6;text-decoration:none}
 .loading{padding:20px;color:var(--dim);font-size:14px}
+@media(max-width:700px){
+  .results{padding:8px;gap:8px;grid-template-columns:1fr}
+  .card{height:84px;padding:10px 12px;gap:12px}
+  .badge{width:56px;height:56px;border-radius:56px}
+  .badge.square{border-radius:12px}
+  .badge-num{font-size:30px}
+  .badge-num.sm{font-size:20px}
+  .badge-icon{font-size:30px}
+  .info{height:56px;gap:2px}
+  .tag{font-size:10px;padding:1px 5px;border-radius:3px}
+  .dest{font-size:16px}
+  .etas{gap:5px}
+  .pill{width:56px;height:56px;border-radius:9px}
+  .pill-num{font-size:30px}
+  .pill.now .pill-num{font-size:17px}
+  .pill-min{font-size:6px;margin-top:-2px}
+  .pill-live{top:3px;right:3px;font-size:11px}
+  footer{padding:4px 14px;font-size:9px}
+}
+@media(max-width:430px){
+  .card{height:76px;padding:8px 10px;gap:10px}
+  .badge{width:52px;height:52px}
+  .badge-num{font-size:28px}
+  .badge-num.sm{font-size:18px}
+  .badge-icon{font-size:28px}
+  .info{height:52px}
+  .dest{font-size:15px}
+  .pill{width:52px;height:52px;border-radius:8px}
+  .pill-num{font-size:28px}
+  .pill.now .pill-num{font-size:16px}
+  .pill-min{font-size:5px}
+  .pill-live{font-size:10px}
+}
 </style>
 </head>
 <body>
@@ -56,7 +90,7 @@ footer a{color:#3b82f6;text-decoration:none}
   </header>
   <div class="results" id="results"><div class="loading">Loading…</div></div>
   <footer>
-    <span>Data from <a href="https://onebusaway.org" target="_blank">OneBusAway</a></span>
+    <span>Data from <a href="https://onebusaway.org" target="_blank">OneBusAway</a> · v3.1</span>
     <span id="updated"></span>
   </footer>
 </div>
@@ -77,7 +111,7 @@ function parseRoute(shortName){
 function classify(type,agencyId,shortName){
   if(type===0&&agencyId==="40")return{mode:"rail",tag:"Light Rail",badge:"round"};
   if(type===3&&agencyId==="40")return{mode:"express",tag:"ST Express",badge:"square"};
-  if(type===3&&(shortName||"").match(/^Swift/i))return{mode:"swift",tag:shortName,badge:"square"};
+  if(type===3&&(shortName||"").match(/^Swift/i))return{mode:"swift",tag:shortName,badge:"square",isSwift:true};
   return{mode:"bus",tag:"Community Transit",badge:"square"};
 }
 
@@ -123,6 +157,44 @@ async function fetchAll(){
 
 function etaText(ms){const m=Math.round((ms-Date.now())/60000);return m<=0?"NOW":`${m}`;}
 
+async function fetchNextDaySchedule(stopIds){
+  const tomorrow=new Date();
+  tomorrow.setDate(tomorrow.getDate()+1);
+  const dateStr=tomorrow.toISOString().split("T")[0];
+  const nextDay=[];
+  for(const id of stopIds){
+    try{
+      const r=await fetch(`${OBA}/schedule-for-stop/${id}.json?key=${KEY}&date=${dateStr}`);
+      if(!r.ok)continue;
+      const j=await r.json();
+      const refs={};for(const rt of j.data.references.routes||[])refs[rt.id]=rt;
+      for(const sr of j.data.entry.stopRouteSchedules||[]){
+        const rt=refs[sr.routeId]||{};
+        const cls=classify(rt.type,rt.agencyId,rt.shortName||"");
+        for(const dir of sr.stopRouteDirectionSchedules||[]){
+          const times=dir.scheduleStopTimes||[];
+          if(!times.length)continue;
+          const first3=times.slice(0,3).map(t=>t.arrivalTime||t.departureTime);
+          nextDay.push({
+            route:parseRoute(rt.shortName||"?"),
+            headsign:dir.tripHeadsign||rt.longName||"",
+            color:rt.color?`#${rt.color}`:"#666",
+            textColor:rt.textColor?`#${rt.textColor}`:"#fff",
+            ...cls,
+            nextDayTimes:first3,
+          });
+        }
+      }
+    }catch(e){}
+  }
+  return nextDay;
+}
+
+function formatTime(ms){
+  const d=new Date(ms);
+  return d.toLocaleTimeString("en-US",{hour:"numeric",minute:"2-digit",hour12:true});
+}
+
 function renderPill(eta){
   const isNow=etaText(eta.ms)==="NOW";
   const cls=isNow?"now":eta.live?"live":"sched";
@@ -133,12 +205,14 @@ function renderPill(eta){
 }
 
 function renderCard(g){
-  const isIcon=g.mode==="streetcar"||g.mode==="monorail";
+  const isIcon=g.mode==="streetcar"||g.mode==="monorail"||g.isSwift;
   const numClass=g.route.length>2?"sm":"";
   const badgeInner=isIcon
-    ?`<span class="material-icons badge-icon">${g.mode==="monorail"?"train":"tram"}</span>`
+    ?`<span class="material-icons badge-icon">${g.mode==="monorail"?"train":g.mode==="streetcar"?"tram":"directions_bus"}</span>`
     :`<span class="badge-num ${numClass}" style="color:${g.textColor}">${g.route}</span>`;
-  const pills=g.etas.map(renderPill).join("");
+  const pills=g.nextDayTimes
+    ?`<div class="next-day-times"><span>${formatTime(g.nextDayTimes[0])}</span></div>`
+    :g.etas.map(renderPill).join("");
   return`<div class="card">
     <div class="badge ${g.badge}" style="background:${g.color}">
       ${badgeInner}
@@ -167,7 +241,26 @@ async function update(){
     for(const k in routeCache){
       const g=routeCache[k];
       const latest=g.etas[g.etas.length-1];
-      if(latest&&latest.ms<now-30*60000)delete routeCache[k];
+      if(latest&&latest.ms<now-30*60000){
+        g.etas=[];
+      }
+    }
+    const emptyRoutes=Object.values(routeCache).filter(g=>!g.etas.length);
+    if(emptyRoutes.length){
+      const allStopIds=[...STOPS.rail,...STOPS.bus,...STOPS.express];
+      const nextDay=await fetchNextDaySchedule(allStopIds);
+      for(const nd of nextDay){
+        const dirKey=nd.headsign.split(/[\s-]/)[0]||nd.headsign;
+        const k=nd.route+"|"+nd.mode+"|"+dirKey;
+        if(routeCache[k]&&!routeCache[k].etas.length){
+          routeCache[k].nextDayTimes=nd.nextDayTimes;
+        } else if(!routeCache[k]){
+          routeCache[k]={...nd,etas:[]};
+        }
+      }
+    }
+    for(const k in routeCache){
+      if(routeCache[k].etas.length)delete routeCache[k].nextDayTimes;
     }
     const sorted=Object.values(routeCache).sort((a,b)=>{
       const aMs=a.etas[0]?.ms||Infinity;
@@ -177,11 +270,7 @@ async function update(){
     cache.length=0;cache.push(...sorted);
   }catch(e){console.error(e);}
   const el=document.getElementById("results");
-  const gap=12;const cardH=120;const avail=el.clientHeight;
-  const cols=getComputedStyle(el).gridTemplateColumns.split(" ").length;
-  const rows=Math.max(1,Math.floor((avail+gap)/(cardH+gap)));
-  const maxCards=cols*rows;
-  el.innerHTML=cache.length?cache.slice(0,maxCards).map(renderCard).join(""):'<div class="loading" style="grid-column:1/-1;text-align:center;font-size:20px;padding:40px">No transit results found</div>';
+  el.innerHTML=cache.length?cache.map(renderCard).join(""):'<div class="loading" style="grid-column:1/-1;text-align:center;font-size:20px;padding:40px">No transit results found</div>';
   document.getElementById("updated").textContent=`Updated ${new Date().toLocaleTimeString("en-US",{hour:"2-digit",minute:"2-digit",second:"2-digit"})}`;
 }
 
@@ -189,7 +278,8 @@ function tick(){document.getElementById("clock").textContent=new Date().toLocale
 tick();setInterval(tick,1000);
 update();setInterval(update,30000);
 let rt;window.addEventListener("resize",()=>{clearTimeout(rt);rt=setTimeout(update,200);});
-if('serviceWorker' in navigator){navigator.serviceWorker.register('./sw.js');}
 </script>
 </body>
 </html>
+
+<script>if('serviceWorker' in navigator){navigator.serviceWorker.register('./sw.js');}</script>
