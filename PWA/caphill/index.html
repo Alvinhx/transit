@@ -93,7 +93,7 @@ footer a{color:#3b82f6;text-decoration:none}
   </header>
   <div class="results" id="results"><div class="loading">Loading…</div></div>
   <footer>
-    <span>Data from <a href="https://onebusaway.org" target="_blank">OneBusAway</a> · v3.3</span>
+    <span>Data from <a href="https://onebusaway.org" target="_blank">OneBusAway</a> · v3.4</span>
     <span id="updated"></span>
   </footer>
 </div>
@@ -280,7 +280,7 @@ async function update(){
     }
     // Sort by earliest upcoming ETA
     // Sort: prioritized routes first, then by earliest ETA
-    const priority=["1","2","8","49","11","12"];
+    const priority=["1","2","8","49","11","12","First Hill"];
     const sorted=Object.values(routeCache).sort((a,b)=>{
       const aP=priority.indexOf(a.route);
       const bP=priority.indexOf(b.route);
@@ -297,7 +297,7 @@ async function update(){
   if(!cache.length){
     el.innerHTML='<div class="loading" style="grid-column:1/-1;text-align:center;font-size:20px;padding:40px">No transit results found</div>';
   } else {
-    const priRoutes=["1","2","8","49","11","12"];
+    const priRoutes=["1","2","8","49","11","12","First Hill"];
     const priCards=cache.filter(g=>priRoutes.includes(g.route));
     const otherCards=cache.filter(g=>!priRoutes.includes(g.route));
     let html=priCards.map(renderCard).join("");
@@ -378,7 +378,7 @@ async function preload(){
     }
   }
   // Render preloaded data
-  const priority=["1","2","8","49","11","12"];
+  const priority=["1","2","8","49","11","12","First Hill"];
   const sorted=Object.values(routeCache).sort((a,b)=>{
     const aP=priority.indexOf(a.route);const bP=priority.indexOf(b.route);
     const aPri=aP>=0?0:1;const bPri=bP>=0?0:1;
