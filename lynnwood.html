@@ -30,7 +30,7 @@ header{background:var(--surface);padding:14px 32px 10px;display:flex;align-items
 .dest{flex:1;display:flex;align-items:center;font-size:22px;font-weight:500;overflow:hidden;line-height:1.2;min-width:0;word-wrap:break-word;white-space:normal}
 .etas{display:flex;gap:8px;flex-shrink:0}
 .pill{width:84px;height:84px;border-radius:14px;background:#242930;display:flex;flex-direction:column;align-items:center;justify-content:center;position:relative}
-.pill.now{background:var(--live);flex-direction:row;gap:3px}
+.pill.now{background:var(--live);flex-direction:row;gap:3px;animation:pulse 2s ease-in-out infinite}
 .pill-num{font-family:var(--font-sans);font-size:54px;font-weight:700;line-height:1;color:var(--text)}
 .pill.sched .pill-num{color:var(--dim)}
 .pill.now .pill-num{font-size:28px;font-weight:800;color:#fff}
@@ -85,7 +85,7 @@ footer a{color:#3b82f6;text-decoration:none}
   </header>
   <div class="results" id="results"><div class="loading">Loading…</div></div>
   <footer>
-    <span>Data from <a href="https://onebusaway.org" target="_blank">OneBusAway</a> · v3.1</span>
+    <span>Data from <a href="https://onebusaway.org" target="_blank">OneBusAway</a> · v3.2</span>
     <span id="updated"></span>
   </footer>
 </div>
@@ -208,7 +208,7 @@ function renderCard(g){
   const pills=g.nextDayTimes
     ?`<div class="next-day-times"><span>${formatTime(g.nextDayTimes[0])}</span></div>`
     :g.etas.map(renderPill).join("");
-  return`<div class="card">
+  return`<div class="card" data-key="${g.route}|${g.headsign}|${g.mode}">
     <div class="badge ${g.badge}" style="background:${g.color}">
       ${badgeInner}
     </div>
@@ -269,6 +269,32 @@ async function update(){
   document.getElementById("updated").textContent=`Updated ${new Date().toLocaleTimeString("en-US",{hour:"2-digit",minute:"2-digit",second:"2-digit"})}`;
 }
 
+function animatedUpdate(){
+  const el=document.getElementById("results");
+  const oldCards={};
+  el.querySelectorAll(".card").forEach(c=>{
+    const key=c.dataset.key;
+    if(key)oldCards[key]=c.getBoundingClientRect();
+  });
+  update().then(()=>{
+    el.querySelectorAll(".card").forEach(c=>{
+      const key=c.dataset.key;
+      if(!key||!oldCards[key])return;
+      const oldRect=oldCards[key];
+      const newRect=c.getBoundingClientRect();
+      const dx=oldRect.left-newRect.left;
+      const dy=oldRect.top-newRect.top;
+      if(Math.abs(dx)<1&&Math.abs(dy)<1)return;
+      c.style.transition="none";
+      c.style.transform=`translate(${dx}px,${dy}px)`;
+      requestAnimationFrame(()=>{
+        c.style.transition="transform 0.4s ease";
+        c.style.transform="";
+      });
+    });
+  });
+}
+
 function tick(){document.getElementById("clock").textContent=new Date().toLocaleTimeString("en-US",{hour:"2-digit",minute:"2-digit",hour12:true});}
 
 async function preload(){
@@ -313,7 +339,11 @@ async function preload(){
 }
 
 tick();setInterval(tick,1000);
-preload().then(()=>update());setInterval(update,30000);
+(async function boot(){
+  await preload();
+  await update();
+  setInterval(animatedUpdate,30000);
+})();
 let rt;window.addEventListener("resize",()=>{clearTimeout(rt);rt=setTimeout(update,200);});
 </script>
 </body>

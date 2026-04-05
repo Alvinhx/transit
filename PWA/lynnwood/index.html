@@ -35,7 +35,7 @@ header{background:var(--surface);padding:14px 32px 10px;display:flex;align-items
 .dest{flex:1;display:flex;align-items:center;font-size:22px;font-weight:500;overflow:hidden;line-height:1.2;min-width:0;word-wrap:break-word;white-space:normal}
 .etas{display:flex;gap:8px;flex-shrink:0}
 .pill{width:84px;height:84px;border-radius:14px;background:#242930;display:flex;flex-direction:column;align-items:center;justify-content:center;position:relative}
-.pill.now{background:var(--live);flex-direction:row;gap:3px}
+.pill.now{background:var(--live);flex-direction:row;gap:3px;animation:pulse 2s ease-in-out infinite}
 .pill-num{font-family:var(--font-sans);font-size:54px;font-weight:700;line-height:1;color:var(--text)}
 .pill.sched .pill-num{color:var(--dim)}
 .pill.now .pill-num{font-size:28px;font-weight:800;color:#fff}
@@ -90,7 +90,7 @@ footer a{color:#3b82f6;text-decoration:none}
   </header>
   <div class="results" id="results"><div class="loading">Loading…</div></div>
   <footer>
-    <span>Data from <a href="https://onebusaway.org" target="_blank">OneBusAway</a> · v3.1</span>
+    <span>Data from <a href="https://onebusaway.org" target="_blank">OneBusAway</a> · v3.2</span>
     <span id="updated"></span>
   </footer>
 </div>
@@ -213,7 +213,7 @@ function renderCard(g){
   const pills=g.nextDayTimes
     ?`<div class="next-day-times"><span>${formatTime(g.nextDayTimes[0])}</span></div>`
     :g.etas.map(renderPill).join("");
-  return`<div class="card">
+  return`<div class="card" data-key="${g.route}|${g.headsign}|${g.mode}">
     <div class="badge ${g.badge}" style="background:${g.color}">
       ${badgeInner}
     </div>
@@ -274,12 +274,84 @@ async function update(){
   document.getElementById("updated").textContent=`Updated ${new Date().toLocaleTimeString("en-US",{hour:"2-digit",minute:"2-digit",second:"2-digit"})}`;
 }
 
+function animatedUpdate(){
+  const el=document.getElementById("results");
+  const oldCards={};
+  el.querySelectorAll(".card").forEach(c=>{
+    const key=c.dataset.key;
+    if(key)oldCards[key]=c.getBoundingClientRect();
+  });
+  update().then(()=>{
+    el.querySelectorAll(".card").forEach(c=>{
+      const key=c.dataset.key;
+      if(!key||!oldCards[key])return;
+      const oldRect=oldCards[key];
+      const newRect=c.getBoundingClientRect();
+      const dx=oldRect.left-newRect.left;
+      const dy=oldRect.top-newRect.top;
+      if(Math.abs(dx)<1&&Math.abs(dy)<1)return;
+      c.style.transition="none";
+      c.style.transform=`translate(${dx}px,${dy}px)`;
+      requestAnimationFrame(()=>{
+        c.style.transition="transform 0.4s ease";
+        c.style.transform="";
+      });
+    });
+  });
+}
+
 function tick(){document.getElementById("clock").textContent=new Date().toLocaleTimeString("en-US",{hour:"2-digit",minute:"2-digit",hour12:true});}
+
+async function preload(){
+  const allStopIds=[...STOPS.rail,...STOPS.bus,...STOPS.express];
+  const now=Date.now();
+  const results=await Promise.allSettled(allStopIds.map(async id=>{
+    const r=await fetch(`${OBA}/schedule-for-stop/${id}.json?key=${KEY}`);
+    if(!r.ok)return[];
+    const j=await r.json();
+    const refs={};for(const rt of j.data.references.routes||[])refs[rt.id]=rt;
+    const items=[];
+    for(const sr of j.data.entry.stopRouteSchedules||[]){
+      const rt=refs[sr.routeId]||{};
+      const cls=classify(rt.type,rt.agencyId,rt.shortName||"");
+      for(const dir of sr.stopRouteDirectionSchedules||[]){
+        const times=(dir.scheduleStopTimes||[]).filter(t=>(t.arrivalTime||t.departureTime)>now);
+        if(!times.length)continue;
+        items.push({
+          route:parseRoute(rt.shortName||"?"),
+          headsign:dir.tripHeadsign||rt.longName||"",
+          color:rt.color?`#${rt.color}`:"#666",
+          textColor:rt.textColor?`#${rt.textColor}`:"#fff",
+          ...cls,
+        });
+      }
+    }
+    return items;
+  }));
+  for(const r of results){
+    if(r.status!=="fulfilled")continue;
+    for(const item of r.value){
+      const dirKey=item.headsign.split(/[\s-]/)[0]||item.headsign;
+      const k=item.route+"|"+item.mode+"|"+dirKey;
+      if(!routeCache[k])routeCache[k]={...item,etas:[]};
+    }
+  }
+  const sorted=Object.values(routeCache).sort((a,b)=>(a.etas[0]?.ms||Infinity)-(b.etas[0]?.ms||Infinity));
+  cache.length=0;cache.push(...sorted);
+  const el=document.getElementById("results");
+  el.innerHTML=cache.map(renderCard).join("");
+  document.getElementById("updated").textContent="Schedule loaded";
+}
+
 tick();setInterval(tick,1000);
-update();setInterval(update,30000);
+(async function boot(){
+  await preload();
+  await update();
+  setInterval(animatedUpdate,30000);
+})();
 let rt;window.addEventListener("resize",()=>{clearTimeout(rt);rt=setTimeout(update,200);});
 </script>
 </body>
 </html>
 
-<script>if('serviceWorker' in navigator){navigator.serviceWorker.register('./sw.js');}</script>
+<script>if("serviceWorker" in navigator){navigator.serviceWorker.register("./sw.js");}</script>

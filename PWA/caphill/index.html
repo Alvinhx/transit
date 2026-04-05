@@ -35,7 +35,7 @@ header{background:var(--surface);padding:14px 32px 10px;display:flex;align-items
 .dest{flex:1;display:flex;align-items:center;font-size:22px;font-weight:500;overflow:hidden;line-height:1.2;min-width:0;word-wrap:break-word;white-space:normal}
 .etas{display:flex;gap:8px;flex-shrink:0}
 .pill{width:84px;height:84px;border-radius:14px;background:#242930;display:flex;flex-direction:column;align-items:center;justify-content:center;position:relative}
-.pill.now{background:var(--live);flex-direction:row;gap:3px}
+.pill.now{background:var(--live);flex-direction:row;gap:3px;animation:pulse 2s ease-in-out infinite}
 .pill-num{font-family:var(--font-sans);font-size:54px;font-weight:700;line-height:1;color:var(--text)}
 .pill.sched .pill-num{color:var(--dim)}
 .pill.now .pill-num{font-size:28px;font-weight:800;color:#fff}
@@ -92,7 +92,7 @@ footer a{color:#3b82f6;text-decoration:none}
   </header>
   <div class="results" id="results"><div class="loading">Loading…</div></div>
   <footer>
-    <span>Data from <a href="https://onebusaway.org" target="_blank">OneBusAway</a> · v3.1</span>
+    <span>Data from <a href="https://onebusaway.org" target="_blank">OneBusAway</a> · v3.2</span>
     <span id="updated"></span>
   </footer>
 </div>
@@ -328,11 +328,66 @@ function animatedUpdate(){
 }
 
 function tick(){document.getElementById("clock").textContent=new Date().toLocaleTimeString("en-US",{hour:"2-digit",minute:"2-digit",hour12:true});}
+
+// Preload: fetch today's schedule to show cards immediately
+async function preload(){
+  const allStopIds=[...STOPS.rail,...STOPS.bus,...STOPS.streetcar];
+  const now=Date.now();
+  const results=await Promise.allSettled(allStopIds.map(async id=>{
+    const r=await fetch(`${OBA}/schedule-for-stop/${id}.json?key=${KEY}`);
+    if(!r.ok)return[];
+    const j=await r.json();
+    const refs={};for(const rt of j.data.references.routes||[])refs[rt.id]=rt;
+    const items=[];
+    for(const sr of j.data.entry.stopRouteSchedules||[]){
+      const rt=refs[sr.routeId]||{};
+      const cls=classify(rt.type,rt.agencyId,rt.shortName||"");
+      for(const dir of sr.stopRouteDirectionSchedules||[]){
+        const times=(dir.scheduleStopTimes||[]).filter(t=>(t.arrivalTime||t.departureTime)>now);
+        if(!times.length)continue;
+        items.push({
+          route:parseRoute(rt.shortName||"?",rt.type,rt.agencyId),
+          headsign:dir.tripHeadsign||rt.longName||"",
+          color:rt.color?`#${rt.color}`:"#666",
+          textColor:rt.textColor?`#${rt.textColor}`:"#fff",
+          ...cls,
+        });
+      }
+    }
+    return items;
+  }));
+  for(const r of results){
+    if(r.status!=="fulfilled")continue;
+    for(const item of r.value){
+      const dirKey=item.headsign.split(/[\s-]/)[0]||item.headsign;
+      const k=item.route+"|"+item.mode+"|"+dirKey;
+      if(!routeCache[k])routeCache[k]={...item,etas:[]};
+    }
+  }
+  // Render preloaded data
+  const priority=["1","2","8","49","11","12"];
+  const sorted=Object.values(routeCache).sort((a,b)=>{
+    const aP=priority.indexOf(a.route);const bP=priority.indexOf(b.route);
+    const aPri=aP>=0?0:1;const bPri=bP>=0?0:1;
+    if(aPri!==bPri)return aPri-bPri;
+    return(a.etas[0]?.ms||Infinity)-(b.etas[0]?.ms||Infinity);
+  });
+  cache.length=0;cache.push(...sorted);
+  const el=document.getElementById("results");
+  el.innerHTML=cache.map(renderCard).join("");
+  document.getElementById("updated").textContent="Schedule loaded";
+}
+
 tick();setInterval(tick,1000);
-update();setInterval(animatedUpdate,30000);
+// Boot: preload schedule cards, then immediately fetch live data
+(async function boot(){
+  await preload();
+  await update();
+  setInterval(animatedUpdate,30000);
+})();
 let rt;window.addEventListener("resize",()=>{clearTimeout(rt);rt=setTimeout(update,200);});
 </script>
 </body>
 </html>
 
-<script>if('serviceWorker' in navigator){navigator.serviceWorker.register('./sw.js');}</script>
+<script>if("serviceWorker" in navigator){navigator.serviceWorker.register("./sw.js");}</script>
