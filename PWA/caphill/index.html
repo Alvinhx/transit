@@ -46,6 +46,7 @@ header{background:var(--surface);padding:14px 32px 10px;display:flex;align-items
 footer{background:var(--surface);padding:6px 32px;display:flex;justify-content:space-between;font-size:12px;color:var(--dim)}
 footer a{color:#3b82f6;text-decoration:none}
 .loading{padding:20px;color:var(--dim);font-size:14px}
+.section-divider{grid-column:1/-1;height:1px;background:var(--border);margin:4px 0}
 @media(max-width:700px){
   .results{padding:8px;gap:8px;grid-template-columns:1fr}
   .card{height:84px;padding:10px 12px;gap:12px}
@@ -92,7 +93,7 @@ footer a{color:#3b82f6;text-decoration:none}
   </header>
   <div class="results" id="results"><div class="loading">Loading…</div></div>
   <footer>
-    <span>Data from <a href="https://onebusaway.org" target="_blank">OneBusAway</a> · v3.2</span>
+    <span>Data from <a href="https://onebusaway.org" target="_blank">OneBusAway</a> · v3.3</span>
     <span id="updated"></span>
   </footer>
 </div>
@@ -293,7 +294,19 @@ async function update(){
     cache.length=0;cache.push(...sorted);
   }catch(e){console.error(e);}
   const el=document.getElementById("results");
-  el.innerHTML=cache.length?cache.map(renderCard).join(""):'<div class="loading" style="grid-column:1/-1;text-align:center;font-size:20px;padding:40px">No transit results found</div>';
+  if(!cache.length){
+    el.innerHTML='<div class="loading" style="grid-column:1/-1;text-align:center;font-size:20px;padding:40px">No transit results found</div>';
+  } else {
+    const priRoutes=["1","2","8","49","11","12"];
+    const priCards=cache.filter(g=>priRoutes.includes(g.route));
+    const otherCards=cache.filter(g=>!priRoutes.includes(g.route));
+    let html=priCards.map(renderCard).join("");
+    if(priCards.length&&otherCards.length){
+      html+='<div class="section-divider"></div>';
+    }
+    html+=otherCards.map(renderCard).join("");
+    el.innerHTML=html;
+  }
   document.getElementById("updated").textContent=`Updated ${new Date().toLocaleTimeString("en-US",{hour:"2-digit",minute:"2-digit",second:"2-digit"})}`;
   document.getElementById("dot").classList.remove("error");
 }
@@ -379,15 +392,15 @@ async function preload(){
 }
 
 tick();setInterval(tick,1000);
-// Boot: preload schedule cards, then immediately fetch live data
+// Boot: start preload and live fetch in parallel
 (async function boot(){
-  await preload();
-  await update();
+  const preloadDone=preload();
+  const updateDone=update();
+  await Promise.all([preloadDone,updateDone]);
   setInterval(animatedUpdate,30000);
 })();
 let rt;window.addEventListener("resize",()=>{clearTimeout(rt);rt=setTimeout(update,200);});
 </script>
 </body>
 </html>
-
 <script>if("serviceWorker" in navigator){navigator.serviceWorker.register("./sw.js");}</script>

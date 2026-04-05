@@ -4,11 +4,6 @@
   <meta charset="UTF-8">
   <meta name="viewport" content="width=device-width, initial-scale=1.0">
   <title>Transit — Lynnwood City Center</title>
-  <link rel="manifest" href="manifest.json">
-  <meta name="theme-color" content="#0d1117">
-  <meta name="apple-mobile-web-app-capable" content="yes">
-  <meta name="apple-mobile-web-app-status-bar-style" content="black-translucent">
-  <link rel="apple-touch-icon" href="icon-192.png">
   <link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Inter:ital,opsz,wght@0,14..32,100..900&display=swap">
   <link rel="stylesheet" href="https://fonts.googleapis.com/icon?family=Material+Icons">
   <style>
@@ -46,6 +41,7 @@ header{background:var(--surface);padding:14px 32px 10px;display:flex;align-items
 footer{background:var(--surface);padding:6px 32px;display:flex;justify-content:space-between;font-size:12px;color:var(--dim)}
 footer a{color:#3b82f6;text-decoration:none}
 .loading{padding:20px;color:var(--dim);font-size:14px}
+.section-divider{grid-column:1/-1;height:1px;background:var(--border);margin:4px 0}
 @media(max-width:700px){
   .results{padding:8px;gap:8px;grid-template-columns:1fr}
   .card{height:84px;padding:10px 12px;gap:12px}
@@ -90,7 +86,7 @@ footer a{color:#3b82f6;text-decoration:none}
   </header>
   <div class="results" id="results"><div class="loading">Loading…</div></div>
   <footer>
-    <span>Data from <a href="https://onebusaway.org" target="_blank">OneBusAway</a> · v3.2</span>
+    <span>Data from <a href="https://onebusaway.org" target="_blank">OneBusAway</a> · v3.3</span>
     <span id="updated"></span>
   </footer>
 </div>
@@ -262,7 +258,11 @@ async function update(){
     for(const k in routeCache){
       if(routeCache[k].etas.length)delete routeCache[k].nextDayTimes;
     }
+    const priority=["1","2","Swift Orange","Swift Blue","120"];
     const sorted=Object.values(routeCache).sort((a,b)=>{
+      const aP=priority.indexOf(a.route);const bP=priority.indexOf(b.route);
+      const aPri=aP>=0?0:1;const bPri=bP>=0?0:1;
+      if(aPri!==bPri)return aPri-bPri;
       const aMs=a.etas[0]?.ms||Infinity;
       const bMs=b.etas[0]?.ms||Infinity;
       return aMs-bMs;
@@ -270,7 +270,19 @@ async function update(){
     cache.length=0;cache.push(...sorted);
   }catch(e){console.error(e);}
   const el=document.getElementById("results");
-  el.innerHTML=cache.length?cache.map(renderCard).join(""):'<div class="loading" style="grid-column:1/-1;text-align:center;font-size:20px;padding:40px">No transit results found</div>';
+  if(!cache.length){
+    el.innerHTML='<div class="loading" style="grid-column:1/-1;text-align:center;font-size:20px;padding:40px">No transit results found</div>';
+  } else {
+    const priRoutes=["1","2","Swift Orange","Swift Blue","120"];
+    const priCards=cache.filter(g=>priRoutes.includes(g.route));
+    const otherCards=cache.filter(g=>!priRoutes.includes(g.route));
+    let html=priCards.map(renderCard).join("");
+    if(priCards.length&&otherCards.length){
+      html+='<div class="section-divider"></div>';
+    }
+    html+=otherCards.map(renderCard).join("");
+    el.innerHTML=html;
+  }
   document.getElementById("updated").textContent=`Updated ${new Date().toLocaleTimeString("en-US",{hour:"2-digit",minute:"2-digit",second:"2-digit"})}`;
 }
 
@@ -345,13 +357,12 @@ async function preload(){
 
 tick();setInterval(tick,1000);
 (async function boot(){
-  await preload();
-  await update();
+  const preloadDone=preload();
+  const updateDone=update();
+  await Promise.all([preloadDone,updateDone]);
   setInterval(animatedUpdate,30000);
 })();
 let rt;window.addEventListener("resize",()=>{clearTimeout(rt);rt=setTimeout(update,200);});
 </script>
 </body>
 </html>
-
-<script>if("serviceWorker" in navigator){navigator.serviceWorker.register("./sw.js");}</script>
