@@ -14,7 +14,14 @@
 body{background:#000;color:var(--text);font-family:var(--font-sans);display:flex;justify-content:center;min-height:100vh;min-height:100dvh;padding:0}
 #board{width:100%;height:100vh;height:100dvh;background:var(--bg);overflow:hidden;display:flex;flex-direction:column}
 header{background:var(--surface);padding:14px 32px 10px;display:flex;align-items:center;gap:12px}
-.station{font-size:36px;font-weight:700;flex:1}
+.station{font-size:36px;font-weight:700;flex:1;cursor:pointer;position:relative;user-select:none;display:flex;align-items:center;gap:8px}
+.station::before{content:"▾";font-size:18px;color:var(--dim)}
+
+.loc-menu{display:none;position:absolute;top:100%;left:0;margin-top:8px;background:var(--card-bg);border:1px solid var(--border);border-radius:12px;padding:6px 0;min-width:280px;z-index:100;box-shadow:0 8px 24px rgba(0,0,0,0.4)}
+.loc-menu.open{display:block}
+.loc-item{display:block;padding:12px 20px;color:var(--text);text-decoration:none;font-size:18px;font-weight:500}
+.loc-item:hover{background:var(--border)}
+.loc-item.active{color:var(--live);font-weight:700}
 .clock{font-family:var(--font-mono);font-size:22px;color:var(--dim)}
 .dot{width:10px;height:10px;border-radius:50%;background:var(--live);animation:pulse 2s ease-in-out infinite}
 @keyframes pulse{0%,100%{opacity:1}50%{opacity:0.3}}
@@ -82,13 +89,19 @@ footer a{color:#3b82f6;text-decoration:none}
 <body>
 <div id="board">
   <header>
-    <div class="station">Capitol Hill</div>
+    <div class="station" onclick="document.getElementById('locMenu').classList.toggle('open')">Capitol Hill
+      <div class="loc-menu" id="locMenu">
+        <a class="loc-item active" href="caphill.html">Capitol Hill</a>
+        <a class="loc-item" href="lynnwood.html">Lynnwood City Center</a>
+        <a class="loc-item" href="DennyPark.html">Denny & Westlake</a>
+      </div>
+    </div>
     <div class="clock" id="clock"></div>
     <div class="dot" id="dot"></div>
   </header>
   <div class="results" id="results"><div class="loading">Loading…</div></div>
   <footer>
-    <span>Data from <a href="https://onebusaway.org" target="_blank">OneBusAway</a> · v3.4</span>
+    <span>Data from <a href="https://onebusaway.org" target="_blank">OneBusAway</a> · v3.5</span>
     <span id="updated"></span>
   </footer>
 </div>
@@ -202,12 +215,17 @@ function formatTime(ms){
 }
 
 function renderPill(eta){
-  const isNow=etaText(eta.ms)==="NOW";
-  const cls=isNow?"now":eta.live?"live":"sched";
-  const num=etaText(eta.ms);
-  let indicator="";
-  if(!isNow&&eta.live)indicator=`<span class="material-icons pill-live">rss_feed</span>`;
-  return`<div class="pill ${cls}">${indicator}<span class="pill-num">${num}</span><span class="pill-min">min</span></div>`;
+  const mins=Math.round((eta.ms-Date.now())/60000);
+  // Expired: more than 1 min past due — hide pill
+  if(mins<-1)return"";
+  // Live + due now: pulsing green NOW
+  if(mins<=0&&eta.live)return`<div class="pill now"><span class="pill-num">NOW</span><span class="pill-min">min</span></div>`;
+  // Scheduled + due now: grey "0"
+  if(mins<=0&&!eta.live)return`<div class="pill sched"><span class="pill-num">0</span><span class="pill-min">min</span></div>`;
+  // Live with time remaining
+  if(eta.live)return`<div class="pill live"><span class="material-icons pill-live">rss_feed</span><span class="pill-num">${mins}</span><span class="pill-min">min</span></div>`;
+  // Scheduled with time remaining
+  return`<div class="pill sched"><span class="pill-num">${mins}</span><span class="pill-min">min</span></div>`;
 }
 
 function renderCard(g){
@@ -395,6 +413,7 @@ tick();setInterval(tick,1000);
   setInterval(animatedUpdate,30000);
 })();
 let rt;window.addEventListener("resize",()=>{clearTimeout(rt);rt=setTimeout(update,200);});
+document.addEventListener("click",e=>{if(!e.target.closest(".station"))document.getElementById("locMenu").classList.remove("open");});
 </script>
 </body>
 </html>

@@ -3,7 +3,7 @@
 <head>
   <meta charset="UTF-8">
   <meta name="viewport" content="width=device-width, initial-scale=1.0">
-  <title>Transit — Lynnwood City Center</title>
+  <title>Transit — Denny & Westlake</title>
   <link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Inter:ital,opsz,wght@0,14..32,100..900&display=swap">
   <link rel="stylesheet" href="https://fonts.googleapis.com/icon?family=Material+Icons">
   <style>
@@ -66,6 +66,7 @@ footer a{color:#3b82f6;text-decoration:none}
   .pill.now .pill-num{font-size:17px}
   .pill-min{font-size:6px;margin-top:-2px}
   .pill-live{top:3px;right:3px;font-size:11px}
+  .next-day-times{font-size:16px;gap:8px}
   footer{padding:4px 14px;font-size:9px}
 }
 @media(max-width:430px){
@@ -81,17 +82,18 @@ footer a{color:#3b82f6;text-decoration:none}
   .pill.now .pill-num{font-size:16px}
   .pill-min{font-size:5px}
   .pill-live{font-size:10px}
+  .next-day-times{font-size:14px;gap:6px}
 }
 </style>
 </head>
 <body>
 <div id="board">
   <header>
-    <div class="station" onclick="document.getElementById('locMenu').classList.toggle('open')">Lynnwood City Center
+    <div class="station" onclick="document.getElementById('locMenu').classList.toggle('open')">Denny & Westlake
       <div class="loc-menu" id="locMenu">
         <a class="loc-item" href="caphill.html">Capitol Hill</a>
-        <a class="loc-item active" href="lynnwood.html">Lynnwood City Center</a>
-        <a class="loc-item" href="DennyPark.html">Denny & Westlake</a>
+        <a class="loc-item" href="lynnwood.html">Lynnwood City Center</a>
+        <a class="loc-item active" href="DennyPark.html">Denny & Westlake</a>
       </div>
     </div>
     <div class="clock" id="clock"></div>
@@ -108,20 +110,21 @@ footer a{color:#3b82f6;text-decoration:none}
 const OBA="https://api.pugetsound.onebusaway.org/api/where";
 const KEY="TEST";
 const STOPS={
-  rail:["40_N23-T1","40_N23-T2"],
-  bus:["29_2035","29_2107","29_2108","29_2109","29_2110","29_2115","29_2116","29_2117","29_2119","29_2167","29_2168","29_3311"],
-  express:["29_2113","29_2118","29_2422","29_2543","29_2114","29_3227"],
+  bus:["1_2255","1_2291","1_2260","1_2285"],
+  streetcar:["1_26665","1_26690","1_26645"],
 };
 
-function parseRoute(shortName){
-  return shortName.replace(/\s*Line$/i,"").replace(/\s*Streetcar$/i,"").trim();
+// Route number parser: "1 Line" → "1", "First Hill Streetcar" → icon
+function parseRoute(shortName,routeType,agencyId){
+  let num=shortName.replace(/\s*Line$/i,"").replace(/\s*Streetcar$/i,"").trim();
+  return num;
 }
 
+// Classify transit type
 function classify(type,agencyId,shortName){
-  if(type===0&&agencyId==="40")return{mode:"rail",tag:"Light Rail",badge:"round"};
-  if(type===3&&agencyId==="40")return{mode:"express",tag:"ST Express",badge:"square"};
-  if(type===3&&(shortName||"").match(/^Swift/i))return{mode:"swift",tag:shortName,badge:"square",isSwift:true};
-  return{mode:"bus",tag:"Community Transit",badge:"square"};
+  if(type===0&&agencyId==="23")return{mode:"streetcar",tag:shortName.replace(/\s*Streetcar$/i," Streetcar").trim(),badge:"square"};
+  if(type===3&&shortName.match(/Line$/i))return{mode:"rapid",tag:"RapidRide",badge:"square"};
+  return{mode:"bus",tag:"KC Bus",badge:"square"};
 }
 
 async function fetchStop(id){
@@ -136,7 +139,7 @@ async function fetchStop(id){
     const live=pred>0;
     const cls=classify(rt.type,rt.agencyId,rt.shortName||"");
     return{
-      route:parseRoute(rt.shortName||"?"),
+      route:parseRoute(rt.shortName||"?",rt.type,rt.agencyId),
       headsign:a.tripHeadsign||rt.longName||"",
       ms:live?pred:sched,live,
       color:rt.color?`#${rt.color}`:"#666",
@@ -147,15 +150,17 @@ async function fetchStop(id){
 }
 
 async function fetchAll(){
-  const ids=[...STOPS.rail,...STOPS.bus,...STOPS.express];
+  const ids=[...STOPS.bus,...STOPS.streetcar];
   const res=await Promise.allSettled(ids.map(fetchStop));
   const deps=[];for(const r of res)if(r.status==="fulfilled")deps.push(...r.value);
+  // Group by route+mode+direction (normalize headsign to first word for stability)
   const groups={};
   for(const d of deps){
-    const dirKey=d.headsign.split(/[\s-]/)[0]||d.headsign;
+    const dirKey=d.headsign.split(/[\s-]/)[0]||d.headsign; // stable first word
     const k=d.route+"|"+d.mode+"|"+dirKey;
     if(!groups[k])groups[k]={...d,etas:[]};
     groups[k].etas.push({ms:d.ms,live:d.live});
+    // Keep the longest headsign for display
     if(d.headsign.length>groups[k].headsign.length)groups[k].headsign=d.headsign;
   }
   const list=Object.values(groups);
@@ -166,6 +171,7 @@ async function fetchAll(){
 
 function etaText(ms){const m=Math.round((ms-Date.now())/60000);return m<=0?"NOW":`${m}`;}
 
+// Fetch next-day schedule for routes with no current ETAs
 async function fetchNextDaySchedule(stopIds){
   const tomorrow=new Date();
   tomorrow.setDate(tomorrow.getDate()+1);
@@ -185,7 +191,7 @@ async function fetchNextDaySchedule(stopIds){
           if(!times.length)continue;
           const first3=times.slice(0,3).map(t=>t.arrivalTime||t.departureTime);
           nextDay.push({
-            route:parseRoute(rt.shortName||"?"),
+            route:parseRoute(rt.shortName||"?",rt.type,rt.agencyId),
             headsign:dir.tripHeadsign||rt.longName||"",
             color:rt.color?`#${rt.color}`:"#666",
             textColor:rt.textColor?`#${rt.textColor}`:"#fff",
@@ -206,18 +212,23 @@ function formatTime(ms){
 
 function renderPill(eta){
   const mins=Math.round((eta.ms-Date.now())/60000);
+  // Expired: more than 1 min past due — hide pill
   if(mins<-1)return"";
+  // Live + due now: pulsing green NOW
   if(mins<=0&&eta.live)return`<div class="pill now"><span class="pill-num">NOW</span><span class="pill-min">min</span></div>`;
+  // Scheduled + due now: grey "0"
   if(mins<=0&&!eta.live)return`<div class="pill sched"><span class="pill-num">0</span><span class="pill-min">min</span></div>`;
+  // Live with time remaining
   if(eta.live)return`<div class="pill live"><span class="material-icons pill-live">rss_feed</span><span class="pill-num">${mins}</span><span class="pill-min">min</span></div>`;
+  // Scheduled with time remaining
   return`<div class="pill sched"><span class="pill-num">${mins}</span><span class="pill-min">min</span></div>`;
 }
 
 function renderCard(g){
-  const isIcon=g.mode==="streetcar"||g.mode==="monorail"||g.isSwift;
+  const isIcon=g.badge==="square"&&(g.mode==="streetcar"||g.mode==="monorail");
   const numClass=g.route.length>2?"sm":"";
   const badgeInner=isIcon
-    ?`<span class="material-icons badge-icon">${g.mode==="monorail"?"train":g.mode==="streetcar"?"tram":"directions_bus"}</span>`
+    ?`<span class="material-icons badge-icon">${g.mode==="monorail"?"train":"tram"}</span>`
     :`<span class="badge-num ${numClass}" style="color:${g.textColor}">${g.route}</span>`;
   const pills=g.nextDayTimes
     ?`<div class="next-day-times"><span>${formatTime(g.nextDayTimes[0])}</span></div>`
@@ -235,28 +246,32 @@ function renderCard(g){
 }
 
 const cache=[];
-const routeCache={};
+const routeCache={}; // keyed by route+direction, persists between refreshes
 
 async function update(){
   document.getElementById("updated").textContent="Updating...";
   try{
     const groups=await fetchAll();
+    // Merge new data into persistent cache
     for(const g of groups){
       const dirKey=g.headsign.split(/[\s-]/)[0]||g.headsign;
       const k=g.route+"|"+g.mode+"|"+dirKey;
       routeCache[k]={...g};
     }
+    // Remove routes whose last ETA is more than 30 min in the past
     const now=Date.now();
     for(const k in routeCache){
       const g=routeCache[k];
       const latest=g.etas[g.etas.length-1];
       if(latest&&latest.ms<now-30*60000){
+        // Don't delete — mark for next-day fetch
         g.etas=[];
       }
     }
+    // If any routes have empty ETAs, fetch next-day schedule
     const emptyRoutes=Object.values(routeCache).filter(g=>!g.etas.length);
     if(emptyRoutes.length){
-      const allStopIds=[...STOPS.rail,...STOPS.bus,...STOPS.express];
+      const allStopIds=[...STOPS.bus,...STOPS.streetcar];
       const nextDay=await fetchNextDaySchedule(allStopIds);
       for(const nd of nextDay){
         const dirKey=nd.headsign.split(/[\s-]/)[0]||nd.headsign;
@@ -268,13 +283,18 @@ async function update(){
         }
       }
     }
+    // Clear nextDayTimes for routes that have active ETAs
     for(const k in routeCache){
       if(routeCache[k].etas.length)delete routeCache[k].nextDayTimes;
     }
-    const priority=["1","2","Swift Orange","Swift Blue","120"];
+    // Sort by earliest upcoming ETA
+    // Sort: prioritized routes first, then by earliest ETA
+    const priority=["8","C","South Lake Union"];
     const sorted=Object.values(routeCache).sort((a,b)=>{
-      const aP=priority.indexOf(a.route);const bP=priority.indexOf(b.route);
-      const aPri=aP>=0?0:1;const bPri=bP>=0?0:1;
+      const aP=priority.indexOf(a.route);
+      const bP=priority.indexOf(b.route);
+      const aPri=aP>=0?0:1;
+      const bPri=bP>=0?0:1;
       if(aPri!==bPri)return aPri-bPri;
       const aMs=a.etas[0]?.ms||Infinity;
       const bMs=b.etas[0]?.ms||Infinity;
@@ -286,7 +306,7 @@ async function update(){
   if(!cache.length){
     el.innerHTML='<div class="loading" style="grid-column:1/-1;text-align:center;font-size:20px;padding:40px">No transit results found</div>';
   } else {
-    const priRoutes=["1","2","Swift Orange","Swift Blue","120"];
+    const priRoutes=["8","C","South Lake Union"];
     const priCards=cache.filter(g=>priRoutes.includes(g.route));
     const otherCards=cache.filter(g=>!priRoutes.includes(g.route));
     let html=priCards.map(renderCard).join("");
@@ -297,16 +317,20 @@ async function update(){
     el.innerHTML=html;
   }
   document.getElementById("updated").textContent=`Updated ${new Date().toLocaleTimeString("en-US",{hour:"2-digit",minute:"2-digit",second:"2-digit"})}`;
+  document.getElementById("dot").classList.remove("error");
 }
 
 function animatedUpdate(){
   const el=document.getElementById("results");
+  // FLIP: record old positions
   const oldCards={};
   el.querySelectorAll(".card").forEach(c=>{
     const key=c.dataset.key;
     if(key)oldCards[key]=c.getBoundingClientRect();
   });
+  // Run update
   update().then(()=>{
+    // FLIP: get new positions and animate
     el.querySelectorAll(".card").forEach(c=>{
       const key=c.dataset.key;
       if(!key||!oldCards[key])return;
@@ -327,8 +351,9 @@ function animatedUpdate(){
 
 function tick(){document.getElementById("clock").textContent=new Date().toLocaleTimeString("en-US",{hour:"2-digit",minute:"2-digit",hour12:true});}
 
+// Preload: fetch today's schedule to show cards immediately
 async function preload(){
-  const allStopIds=[...STOPS.rail,...STOPS.bus,...STOPS.express];
+  const allStopIds=[...STOPS.bus,...STOPS.streetcar];
   const now=Date.now();
   const results=await Promise.allSettled(allStopIds.map(async id=>{
     const r=await fetch(`${OBA}/schedule-for-stop/${id}.json?key=${KEY}`);
@@ -343,7 +368,7 @@ async function preload(){
         const times=(dir.scheduleStopTimes||[]).filter(t=>(t.arrivalTime||t.departureTime)>now);
         if(!times.length)continue;
         items.push({
-          route:parseRoute(rt.shortName||"?"),
+          route:parseRoute(rt.shortName||"?",rt.type,rt.agencyId),
           headsign:dir.tripHeadsign||rt.longName||"",
           color:rt.color?`#${rt.color}`:"#666",
           textColor:rt.textColor?`#${rt.textColor}`:"#fff",
@@ -361,7 +386,14 @@ async function preload(){
       if(!routeCache[k])routeCache[k]={...item,etas:[]};
     }
   }
-  const sorted=Object.values(routeCache).sort((a,b)=>(a.etas[0]?.ms||Infinity)-(b.etas[0]?.ms||Infinity));
+  // Render preloaded data
+  const priority=["8","C","South Lake Union"];
+  const sorted=Object.values(routeCache).sort((a,b)=>{
+    const aP=priority.indexOf(a.route);const bP=priority.indexOf(b.route);
+    const aPri=aP>=0?0:1;const bPri=bP>=0?0:1;
+    if(aPri!==bPri)return aPri-bPri;
+    return(a.etas[0]?.ms||Infinity)-(b.etas[0]?.ms||Infinity);
+  });
   cache.length=0;cache.push(...sorted);
   const el=document.getElementById("results");
   el.innerHTML=cache.map(renderCard).join("");
@@ -369,6 +401,7 @@ async function preload(){
 }
 
 tick();setInterval(tick,1000);
+// Boot: start preload and live fetch in parallel
 (async function boot(){
   const preloadDone=preload();
   const updateDone=update();
