@@ -266,8 +266,112 @@
       }
     }
 
-    // 6. Default fallback
+    // 6. Check default launch location
+    var def = loadDefaultLocation();
+    if (def) {
+      if (def.type === 'builtin' && builtinKeys.indexOf(def.id) !== -1) {
+        return { type: 'builtin', id: def.id };
+      }
+      if (def.type === 'custom') {
+        for (var m = 0; m < customLocations.length; m++) {
+          if (customLocations[m].id === def.id) {
+            return { type: 'custom', id: def.id };
+          }
+        }
+      }
+    }
+
+    // 7. Default fallback
     return { type: 'builtin', id: 'caphill' };
+  }
+
+  // ===== Default Location =====
+
+  var DEFAULT_LOC_KEY = 'nextup_default_location';
+
+  /**
+   * Load the default launch location from localStorage.
+   * @returns {{ type: string, id: string } | null}
+   */
+  function loadDefaultLocation() {
+    try {
+      var raw = localStorage.getItem(DEFAULT_LOC_KEY);
+      if (!raw) return null;
+      var parsed = JSON.parse(raw);
+      if (parsed && typeof parsed.type === 'string' && typeof parsed.id === 'string') {
+        return { type: parsed.type, id: parsed.id };
+      }
+      return null;
+    } catch (e) {
+      return null;
+    }
+  }
+
+  /**
+   * Save the default launch location to localStorage.
+   * @param {string} type - 'builtin' or 'custom'
+   * @param {string} id - Station key or custom location UUID
+   */
+  function saveDefaultLocation(type, id) {
+    try {
+      localStorage.setItem(DEFAULT_LOC_KEY, JSON.stringify({ type: type, id: id }));
+    } catch (e) {}
+  }
+
+  /**
+   * Clear the default launch location.
+   */
+  function clearDefaultLocation() {
+    try { localStorage.removeItem(DEFAULT_LOC_KEY); } catch (e) {}
+  }
+
+  // ===== Priority Overrides =====
+
+  var PRIORITY_STORAGE_KEY = 'nextup_priority_overrides';
+
+  /**
+   * Load priority overrides for a specific location from localStorage.
+   * Returns an array of route names, or null if no override exists.
+   * @param {string} locationId - Station key or custom location UUID
+   * @returns {string[]|null}
+   */
+  function loadPriorityOverride(locationId) {
+    try {
+      var raw = localStorage.getItem(PRIORITY_STORAGE_KEY);
+      if (!raw) return null;
+      var parsed = JSON.parse(raw);
+      if (parsed && Array.isArray(parsed[locationId])) return parsed[locationId];
+      return null;
+    } catch (e) {
+      return null;
+    }
+  }
+
+  /**
+   * Save priority overrides for a specific location to localStorage.
+   * @param {string} locationId - Station key or custom location UUID
+   * @param {string[]} routes - Array of priority route names
+   */
+  function savePriorityOverride(locationId, routes) {
+    try {
+      var raw = localStorage.getItem(PRIORITY_STORAGE_KEY);
+      var all = {};
+      if (raw) { try { all = JSON.parse(raw) || {}; } catch(e) { all = {}; } }
+      all[locationId] = routes;
+      localStorage.setItem(PRIORITY_STORAGE_KEY, JSON.stringify(all));
+    } catch (e) {}
+  }
+
+  /**
+   * Get the effective priority list for a location.
+   * Returns the user override if it exists, otherwise the default from config.
+   * @param {string} locationId
+   * @param {string[]} defaultPriority
+   * @returns {string[]}
+   */
+  function getEffectivePriority(locationId, defaultPriority) {
+    var override = loadPriorityOverride(locationId);
+    return override !== null ? override : defaultPriority;
   }
 
   // ===== Exports =====
@@ -283,6 +387,12 @@
     suggestDefaultName: suggestDefaultName,
     genericClassify: genericClassify,
     buildCustomConfig: buildCustomConfig,
-    resolveLocation: resolveLocation
+    resolveLocation: resolveLocation,
+    loadPriorityOverride: loadPriorityOverride,
+    savePriorityOverride: savePriorityOverride,
+    getEffectivePriority: getEffectivePriority,
+    loadDefaultLocation: loadDefaultLocation,
+    saveDefaultLocation: saveDefaultLocation,
+    clearDefaultLocation: clearDefaultLocation
   };
 });
