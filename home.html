@@ -49,7 +49,7 @@ header{background:var(--surface);padding:14px 16px 10px;display:flex;align-items
 .dot{width:10px;height:10px;border-radius:50%;background:var(--live);animation:pulse 2s ease-in-out infinite}
 @keyframes pulse{0%,100%{opacity:1}50%{opacity:0.3}}
 .results{flex:1;display:grid;grid-template-columns:repeat(auto-fill,minmax(min(600px,100%),1fr));align-content:start;gap:12px;padding:16px;overflow-y:auto;overflow-x:hidden}
-.card{height:120px;background:var(--card-bg);border:1px solid var(--border);border-radius:16px;display:flex;align-items:center;padding:16px 16px 16px 20px;gap:16px;transition:transform 0.4s ease,opacity 0.3s ease;cursor:pointer;position:relative}
+.card{height:120px;background:var(--card-bg);border:1px solid var(--border);border-radius:16px;display:flex;align-items:center;padding:16px 16px 16px 20px;gap:16px;transition:transform 0.4s ease,opacity 0.3s ease;cursor:pointer;position:relative;-webkit-user-select:none;user-select:none;-webkit-touch-callout:none}
 .card-pin{position:absolute;top:6px;left:8px;font-size:14px;color:#FFC94F;opacity:0.9}
 .badge{width:80px;height:80px;border-radius:60px;display:flex;align-items:center;justify-content:center;flex-shrink:0}
 .badge.square{border-radius:16px}
@@ -159,7 +159,7 @@ footer a{color:#3b82f6;text-decoration:none}
   </header>
   <div class="results" id="results"><div class="loading">Loading…</div></div>
   <footer>
-    <span>Data from <a href="https://onebusaway.org" target="_blank">OneBusAway</a> · v4.3</span>
+    <span>Data from <a href="https://onebusaway.org" target="_blank">OneBusAway</a> · v4.3.1</span>
     <span id="updated"></span>
   </footer>
 </div>
@@ -838,21 +838,25 @@ var _lpTimer=null;
 var _lpFired=false;
 function attachLongPress(){
   document.querySelectorAll(".card[data-route]").forEach(function(card){
-    card.addEventListener("pointerdown",function(e){
+    function startPress(e){
       _lpFired=false;
-      var el=this;
+      var el=card;
       _lpTimer=setTimeout(function(){
         _lpFired=true;
+        if(navigator.vibrate) navigator.vibrate(30);
         togglePriority(el);
       },500);
-    });
-    card.addEventListener("pointerup",function(){clearTimeout(_lpTimer);});
-    card.addEventListener("pointerleave",function(){clearTimeout(_lpTimer);});
-    card.addEventListener("pointermove",function(e){
-      if(e.pointerType==="touch")clearTimeout(_lpTimer);
-    });
-    // Prevent context menu on long press (mobile)
-    card.addEventListener("contextmenu",function(e){if(_lpFired)e.preventDefault();});
+    }
+    function endPress(){clearTimeout(_lpTimer);}
+    function cancelPress(){clearTimeout(_lpTimer);}
+    card.addEventListener("touchstart",function(e){startPress(e);},{passive:true});
+    card.addEventListener("touchend",endPress);
+    card.addEventListener("touchmove",cancelPress);
+    card.addEventListener("touchcancel",cancelPress);
+    card.addEventListener("mousedown",startPress);
+    card.addEventListener("mouseup",endPress);
+    card.addEventListener("mouseleave",cancelPress);
+    card.addEventListener("contextmenu",function(e){e.preventDefault();});
   });
 }
 

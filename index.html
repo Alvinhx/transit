@@ -1,0 +1,35 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Transit Departures — Capitol Hill</title>
+  <link rel="stylesheet" href="https://fonts.googleapis.com/icon?family=Material+Icons">
+  <link rel="stylesheet" href="style.css">
+</head>
+<body>
+  <div id="board">
+    <header>
+      <div class="station-name">Capitol Hill Station</div>
+      <div class="header-meta">
+        <span class="clock" id="clock"></span>
+        <span class="update-dot" id="updateDot" title="Live"></span>
+      </div>
+    </header>
+    <div class="category" id="bus-section">
+      <div class="card-grid" id="bus-departures"><div class="loading">Loading…</div></div>
+    </div>
+    <div class="category" id="rail-section">
+      <div class="card-grid" id="rail-departures"><div class="loading">Loading…</div></div>
+    </div>
+    <div class="category" id="streetcar-section">
+      <div class="card-grid" id="streetcar-departures"><div class="loading">Loading…</div></div>
+    </div>
+    <footer>
+      <span>Data from <a href="https://onebusaway.org" target="_blank" rel="noopener">OneBusAway</a></span>
+      <span id="lastUpdate"></span>
+    </footer>
+  </div>
+  <script src="app.js"></script>
+</body>
+</html>
