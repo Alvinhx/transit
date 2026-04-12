@@ -4,16 +4,15 @@
   <meta charset="UTF-8">
   <meta name="viewport" content="width=device-width, initial-scale=1.0">
   <title>NextUp Transit</title>
-  <link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Noto+Sans:ital,wght@0,100..900&display=swap">
+  <link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Inter:ital,opsz,wght@0,14..32,100..900&display=swap">
   <link rel="stylesheet" href="https://fonts.googleapis.com/icon?family=Material+Icons">
-  <link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Material+Symbols+Rounded:opsz,wght,FILL,GRAD@20..48,100..700,0..1,-50..200&display=swap">
   <link rel="stylesheet" href="https://unpkg.com/leaflet@1.9.4/dist/leaflet.css">
   <script src="https://unpkg.com/leaflet@1.9.4/dist/leaflet.js"></script>
   <style>
 *,*::before,*::after{box-sizing:border-box;margin:0;padding:0}
 :root{--bg:#0d1117;--surface:#161b22;--card-bg:#161b22;--border:#21262d;--text:#e6edf3;--dim:#8b949e;--live:#22c55e;--accent:#3B82F6;
 --font-mono:"SF Mono","Cascadia Code","Fira Code","Consolas",monospace;
---font-sans:"Noto Sans",-apple-system,BlinkMacSystemFont,"Segoe UI",sans-serif}
+--font-sans:"Inter",-apple-system,BlinkMacSystemFont,"Segoe UI",sans-serif}
 body{background:#000;color:var(--text);font-family:var(--font-sans);display:flex;justify-content:center;min-height:100vh;min-height:100dvh;padding:0}
 #board{width:100%;height:100vh;height:100dvh;background:var(--bg);overflow:hidden;display:flex;flex-direction:column}
 header{background:var(--surface);padding:14px 16px 10px;display:flex;align-items:center;gap:12px}
@@ -50,98 +49,65 @@ header{background:var(--surface);padding:14px 16px 10px;display:flex;align-items
 .dot{width:10px;height:10px;border-radius:50%;background:var(--live);animation:pulse 2s ease-in-out infinite}
 @keyframes pulse{0%,100%{opacity:1}50%{opacity:0.3}}
 .results{flex:1;display:grid;grid-template-columns:repeat(auto-fill,minmax(min(600px,100%),1fr));align-content:start;gap:12px;padding:16px;overflow-y:auto;overflow-x:hidden}
-.card{height:112px;background:var(--card-bg);border-radius:24px;display:flex;align-items:center;padding:16px 16px 16px 20px;gap:16px;transition:transform 0.4s ease,opacity 0.3s ease;cursor:pointer;position:relative;-webkit-user-select:none;user-select:none;-webkit-touch-callout:none;overflow:visible}
-.card.pinned{border-radius:48px}
-.card-pin{position:absolute;top:-4px;left:-4px;color:#FFC94F;opacity:0.9;font-size:16px;z-index:1}
-.card-pin svg{width:16px;height:16px;fill:#FFC94F}
-.badge{width:72px;height:72px;border-radius:36px;display:flex;align-items:center;justify-content:center;flex-shrink:0;flex-direction:column;gap:-2px}
-.badge.square{border-radius:24px}
-.badge-num{font-family:var(--font-sans);font-weight:900;font-size:36px}
-.badge-num.sm{font-size:22px}
-.badge-sub{font-size:10px;font-weight:700;opacity:0.55;color:#fff;margin-top:-4px}
-.badge-icon{font-size:36px;color:#fff;font-family:'Material Symbols Rounded'}
-.info{flex:1;display:flex;flex-direction:column;gap:4px;height:72px;min-width:0;overflow:hidden}
-.tag{display:inline-flex;align-items:center;padding:4px 10px;border-radius:12px;font-size:12px;font-weight:700;align-self:flex-start;flex-shrink:0}
-.dest{flex:1;display:flex;align-items:center;font-size:22px;font-weight:600;overflow:hidden;line-height:1.2;min-width:0;word-wrap:break-word;white-space:normal;color:var(--text)}
-.etas{display:flex;gap:6px;flex-shrink:0;align-items:center}
-.pill{width:80px;height:80px;border-radius:40px;background:rgba(255,255,255,0.06);display:flex;flex-direction:column;align-items:center;justify-content:center;position:relative;overflow:visible}
-.pill.now{width:auto;min-width:100px;height:80px;border-radius:40px;background:#0DF266;flex-direction:row;gap:3px;padding:0 18px;animation:pulse 2s ease-in-out infinite}
-.pill-num{font-family:var(--font-sans);font-size:40px;font-weight:700;line-height:1;color:var(--text)}
+.card{height:120px;background:var(--card-bg);border:1px solid var(--border);border-radius:16px;display:flex;align-items:center;padding:16px 16px 16px 20px;gap:16px;transition:transform 0.4s ease,opacity 0.3s ease;cursor:pointer;position:relative;-webkit-user-select:none;user-select:none;-webkit-touch-callout:none}
+.card-pin{position:absolute;top:6px;left:8px;font-size:14px;color:#FFC94F;opacity:0.9}
+.badge{width:80px;height:80px;border-radius:60px;display:flex;align-items:center;justify-content:center;flex-shrink:0}
+.badge.square{border-radius:16px}
+.badge-num{font-family:var(--font-sans);font-weight:900;font-size:48px}
+.badge-num.sm{font-size:32px}
+.badge-icon{font-size:48px;color:#fff}
+.info{flex:1;display:flex;flex-direction:column;gap:4px;height:80px;min-width:0;overflow:hidden}
+.tag{display:inline-flex;align-items:center;padding:2px 6px;border-radius:4px;font-size:14px;font-weight:700;color:#fff;align-self:flex-start;flex-shrink:0}
+.dest{flex:1;display:flex;align-items:center;font-size:22px;font-weight:500;overflow:hidden;line-height:1.2;min-width:0;word-wrap:break-word;white-space:normal}
+.etas{display:flex;gap:8px;flex-shrink:0}
+.pill{width:84px;height:84px;border-radius:14px;background:#242930;display:flex;flex-direction:column;align-items:center;justify-content:center;position:relative}
+.pill.now{background:#242930;flex-direction:row;gap:3px}
+.pill-num{font-family:var(--font-sans);font-size:54px;font-weight:700;line-height:1;color:var(--text)}
 .pill.sched .pill-num{color:var(--dim)}
-.pill.now .pill-num{font-size:32px;font-weight:900;color:#000}
-.pill-min{font-size:8px;font-weight:500;color:var(--dim);margin-top:-4px}
+.pill.now .pill-num{font-size:28px;font-weight:800;color:var(--live);animation:pulse 2s ease-in-out infinite}
+.pill-min{font-size:8px;font-weight:500;color:var(--dim);margin-top:-6px}
 .pill.now .pill-min{display:none}
-.pill-live{position:absolute;top:12px;right:12px;font-size:12px;color:var(--live);font-family:'Material Symbols Rounded'}
-.pill.live-near{background:rgba(255,255,255,0.06)}
-.pill.live-far{background:rgba(255,255,255,0.06)}
-.pill.sched{background:rgba(255,255,255,0.06)}
+.pill-live{position:absolute;top:4px;right:5px;font-size:15px;color:var(--live)}
 .next-day-times{display:flex;gap:12px;align-items:center;color:var(--dim);font-size:28px;font-weight:700;font-family:var(--font-sans)}
-footer{background:var(--surface);padding:6px 32px;display:flex;justify-content:space-between;font-size:12px;color:var(--dim);align-items:center}
+footer{background:var(--surface);padding:6px 32px;display:flex;justify-content:space-between;font-size:12px;color:var(--dim)}
 footer a{color:#3b82f6;text-decoration:none}
-.theme-toggle{background:none;border:1px solid var(--border);border-radius:20px;padding:4px 12px;color:var(--dim);font-size:11px;cursor:pointer;font-family:var(--font-sans);display:flex;align-items:center;gap:4px}
-.theme-toggle:hover{color:var(--text);border-color:var(--dim)}
-/* Light theme */
-body.light{--bg:#ffffff;--surface:#f5f7fa;--card-bg:#ffffff;--border:#e2e8f0;--text:#0f1419;--dim:#64748b;--live:#16a34a;--accent:#3B82F6}
-body.light .card{background:var(--card-bg)}
-body.light .dest{color:var(--text)}
-body.light .pill{background:rgba(255,255,255,0.6)}
-body.light .pill.now{background:#0DF266}
-body.light .pill.now .pill-num{color:#000}
-body.light .pill.live-near{background:rgba(255,255,255,0.6)}
-body.light .pill.live-far{background:rgba(255,255,255,0.6)}
-body.light .pill.sched{background:rgba(255,255,255,0.6)}
-body.light .pill-num{color:var(--text)}
-body.light .pill.sched .pill-num{color:var(--dim)}
-body.light .pill.now .pill-num{color:#16a34a}
-body.light .pill-live{color:#16a34a}
-body.light .clock{color:var(--dim)}
-body.light .loc-menu{background:#fff;border-color:#e2e8f0;box-shadow:0 8px 24px rgba(0,0,0,0.12)}
-body.light .loc-item:hover{background:#f1f5f9}
-body.light .tag{background:rgba(255,255,255,0.7)!important}
-body.light .card-pin svg{fill:#E99300}
 .loading{padding:20px;color:var(--dim);font-size:14px}
 .section-divider{grid-column:1/-1;height:1px;background:var(--border);margin:4px 0}
 @media(max-width:700px){
   header{padding:10px 12px 8px}
   .results{padding:8px;gap:8px;grid-template-columns:1fr}
-  .card{height:80px;padding:10px 10px 10px 12px;gap:10px;border-radius:20px}
-  .card.pinned{border-radius:40px}
-  .badge{width:52px;height:52px;border-radius:26px}
-  .badge.square{border-radius:14px}
-  .badge-num{font-size:24px}
-  .badge-num.sm{font-size:16px}
-  .badge-sub{font-size:7px}
-  .badge-icon{font-size:24px}
-  .info{height:52px;gap:2px}
-  .tag{font-size:9px;padding:2px 6px;border-radius:8px}
-  .dest{font-size:15px}
-  .etas{gap:4px}
-  .pill{width:52px;height:52px;border-radius:26px}
-  .pill.now{min-width:68px;height:52px;border-radius:26px;padding:0 10px}
-  .pill-num{font-size:26px}
-  .pill.now .pill-num{font-size:20px}
-  .pill-min{font-size:5px;margin-top:-2px}
-  .pill-live{top:8px;right:8px;font-size:9px}
-  .next-day-times{font-size:14px;gap:6px}
+  .card{height:84px;padding:10px 12px;gap:12px}
+  .badge{width:56px;height:56px;border-radius:56px}
+  .badge.square{border-radius:12px}
+  .badge-num{font-size:30px}
+  .badge-num.sm{font-size:20px}
+  .badge-icon{font-size:30px}
+  .info{height:56px;gap:2px}
+  .tag{font-size:10px;padding:1px 5px;border-radius:3px}
+  .dest{font-size:16px}
+  .etas{gap:5px}
+  .pill{width:56px;height:56px;border-radius:9px}
+  .pill-num{font-size:30px}
+  .pill.now .pill-num{font-size:17px}
+  .pill-min{font-size:6px;margin-top:-2px}
+  .pill-live{top:3px;right:3px;font-size:11px}
+  .next-day-times{font-size:16px;gap:8px}
   footer{padding:4px 14px;font-size:9px}
 }
 @media(max-width:430px){
-  .card{height:72px;padding:8px 8px 8px 10px;gap:8px;border-radius:16px}
-  .card.pinned{border-radius:36px}
-  .badge{width:46px;height:46px;border-radius:23px}
-  .badge.square{border-radius:12px}
-  .badge-num{font-size:20px}
-  .badge-num.sm{font-size:14px}
-  .badge-icon{font-size:20px}
-  .info{height:46px}
-  .dest{font-size:13px}
-  .pill{width:42px;height:42px;border-radius:21px}
-  .pill.now{min-width:56px;height:42px;border-radius:21px;padding:0 8px}
-  .pill-num{font-size:20px}
+  .card{height:76px;padding:8px 10px;gap:10px}
+  .badge{width:52px;height:52px}
+  .badge-num{font-size:28px}
+  .badge-num.sm{font-size:18px}
+  .badge-icon{font-size:28px}
+  .info{height:52px}
+  .dest{font-size:15px}
+  .pill{width:52px;height:52px;border-radius:8px}
+  .pill-num{font-size:28px}
   .pill.now .pill-num{font-size:16px}
   .pill-min{font-size:5px}
-  .pill-live{top:6px;right:6px;font-size:8px}
-  .next-day-times{font-size:12px;gap:4px}
+  .pill-live{font-size:10px}
+  .next-day-times{font-size:14px;gap:6px}
 }
 /* Creation Modal */
 .modal-overlay{position:fixed;top:0;left:0;width:100%;height:100%;background:rgba(0,0,0,0.8);z-index:200;display:flex;align-items:center;justify-content:center;padding:16px}
@@ -180,19 +146,6 @@ body.light .card-pin svg{fill:#E99300}
 .map-counter{font-size:13px;color:var(--dim);margin-bottom:4px}
 .map-rescan{position:absolute;top:10px;left:50%;transform:translateX(-50%);z-index:1000;padding:6px 16px;border-radius:20px;background:var(--accent);color:#fff;font-size:13px;font-weight:600;border:none;cursor:pointer;font-family:var(--font-sans);box-shadow:0 2px 8px rgba(0,0,0,0.4);display:none}
 .map-rescan:hover{opacity:0.9}
-/* Onboarding Modal */
-.onboard-overlay{position:fixed;top:0;left:0;width:100%;height:100%;background:rgba(0,0,0,0.85);z-index:300;display:flex;align-items:center;justify-content:center;padding:20px}
-.onboard-card{background:var(--surface);border:1px solid var(--border);border-radius:24px;width:100%;max-width:400px;padding:32px 28px;text-align:center}
-.onboard-title{font-size:24px;font-weight:800;margin-bottom:4px}
-.onboard-sub{font-size:13px;color:var(--dim);margin-bottom:24px}
-.onboard-tips{text-align:left;display:flex;flex-direction:column;gap:16px;margin-bottom:28px}
-.onboard-tip{display:flex;gap:12px;align-items:flex-start}
-.onboard-icon{width:40px;height:40px;border-radius:12px;background:rgba(255,255,255,0.06);display:flex;align-items:center;justify-content:center;flex-shrink:0;font-size:20px}
-.onboard-tip-text{flex:1}
-.onboard-tip-title{font-size:15px;font-weight:700;margin-bottom:2px}
-.onboard-tip-desc{font-size:12px;color:var(--dim);line-height:1.4}
-.onboard-btn{width:100%;padding:14px;border-radius:14px;border:none;background:var(--accent);color:#fff;font-size:16px;font-weight:700;cursor:pointer;font-family:var(--font-sans)}
-.onboard-btn:hover{opacity:0.9}
 </style>
 </head>
 <body>
@@ -206,40 +159,9 @@ body.light .card-pin svg{fill:#E99300}
   </header>
   <div class="results" id="results"><div class="loading">Loading…</div></div>
   <footer>
-    <button class="theme-toggle" onclick="toggleTheme()"><span class="material-icons" style="font-size:14px">brightness_6</span><span id="themeLabel">Light</span></button>
-    <span id="updated">v5.1</span>
+    <span>Data from <a href="https://onebusaway.org" target="_blank">OneBusAway</a> · v4.3.1</span>
+    <span id="updated"></span>
   </footer>
-</div>
-
-<div id="onboardModal" class="onboard-overlay" style="display:none">
-  <div class="onboard-card">
-    <div class="onboard-title">Welcome to NextUp 👋</div>
-    <div class="onboard-sub">Here's what's new</div>
-    <div class="onboard-tips">
-      <div class="onboard-tip">
-        <div class="onboard-icon">📌</div>
-        <div class="onboard-tip-text">
-          <div class="onboard-tip-title">Pin your routes</div>
-          <div class="onboard-tip-desc">Long-press any route card to pin it to the top. Pinned routes always show first.</div>
-        </div>
-      </div>
-      <div class="onboard-tip">
-        <div class="onboard-icon">📍</div>
-        <div class="onboard-tip-text">
-          <div class="onboard-tip-title">Add custom locations</div>
-          <div class="onboard-tip-desc">Tap the station name → Add Location. We'll find nearby stops using your GPS.</div>
-        </div>
-      </div>
-      <div class="onboard-tip">
-        <div class="onboard-icon">🏠</div>
-        <div class="onboard-tip-text">
-          <div class="onboard-tip-title">Set a home station</div>
-          <div class="onboard-tip-desc">Tap the home icon next to the station name to set it as your default launch location.</div>
-        </div>
-      </div>
-    </div>
-    <button class="onboard-btn" onclick="dismissOnboard()">Got it</button>
-  </div>
 </div>
 
 <div id="creationModal" class="modal-overlay" style="display:none">
@@ -264,23 +186,6 @@ const STATIONS={
     name:"Capitol Hill",
     stops:{rail:["40_99610","40_99603"],bus:["1_11180","1_11050","1_29270","1_29262","1_11060"],streetcar:["1_11175"]},
     priority:["1","2","8","49","11","12","First Hill"],
-    manifest:[
-      {route:"1",headsign:"Federal Way Downtown",color:"#28813F",textColor:"#FFFFFF",mode:"rail",tag:"Light Rail",badge:"round"},
-      {route:"1",headsign:"Lynnwood City Center",color:"#28813F",textColor:"#FFFFFF",mode:"rail",tag:"Light Rail",badge:"round"},
-      {route:"2",headsign:"Downtown Redmond",color:"#007CAD",textColor:"#FFFFFF",mode:"rail",tag:"Light Rail",badge:"round"},
-      {route:"2",headsign:"Lynnwood City Center",color:"#007CAD",textColor:"#FFFFFF",mode:"rail",tag:"Light Rail",badge:"round"},
-      {route:"8",headsign:"Mount Baker Transit Center",color:"#FDB71A",textColor:"#000000",mode:"bus",tag:"KC Bus",badge:"square"},
-      {route:"8",headsign:"Seattle Center",color:"#FDB71A",textColor:"#000000",mode:"bus",tag:"KC Bus",badge:"square"},
-      {route:"11",headsign:"Madison Park",color:"#FDB71A",textColor:"#000000",mode:"bus",tag:"KC Bus",badge:"square"},
-      {route:"11",headsign:"Downtown Seattle Capitol Hill Station",color:"#FDB71A",textColor:"#000000",mode:"bus",tag:"KC Bus",badge:"square"},
-      {route:"43",headsign:"University District Montlake",color:"#FDB71A",textColor:"#000000",mode:"bus",tag:"KC Bus",badge:"square"},
-      {route:"49",headsign:"U-District Station Capitol Hill",color:"#FDB71A",textColor:"#000000",mode:"bus",tag:"KC Bus",badge:"square"},
-      {route:"49",headsign:"Downtown Seattle Broadway",color:"#FDB71A",textColor:"#000000",mode:"bus",tag:"KC Bus",badge:"square"},
-      {route:"60",headsign:"Broadway First Hill",color:"#FDB71A",textColor:"#000000",mode:"bus",tag:"KC Bus",badge:"square"},
-      {route:"60",headsign:"Westwood Village N Beacon Hill",color:"#FDB71A",textColor:"#000000",mode:"bus",tag:"KC Bus",badge:"square"},
-      {route:"First Hill",headsign:"Capitol Hill",color:"#F47836",textColor:"#FFFFFF",mode:"streetcar",tag:"First Hill Streetcar",badge:"square"},
-      {route:"First Hill",headsign:"Pioneer Square",color:"#F47836",textColor:"#FFFFFF",mode:"streetcar",tag:"First Hill Streetcar",badge:"square"},
-    ],
     classify(type,agencyId,shortName){
       if(type===0&&agencyId==="40")return{mode:"rail",tag:"Light Rail",badge:"round"};
       if(type===0)return{mode:"streetcar",tag:shortName.replace(/\s*Streetcar$/i," Streetcar").trim(),badge:"square"};
@@ -294,22 +199,6 @@ const STATIONS={
     name:"Lynnwood City Center",
     stops:{rail:["40_N23-T1","40_N23-T2"],bus:["29_2035","29_2107","29_2108","29_2109","29_2110","29_2115","29_2116","29_2117","29_2119","29_2167","29_2168","29_3311"],express:["29_2113","29_2118","29_2422","29_2543","29_2114","29_3227"]},
     priority:["1","2","Swift Orange","Swift Blue","120"],
-    manifest:[
-      {route:"1",headsign:"Federal Way Downtown",color:"#28813F",textColor:"#FFFFFF",mode:"rail",tag:"Light Rail",badge:"round"},
-      {route:"1",headsign:"Lynnwood City Center",color:"#28813F",textColor:"#FFFFFF",mode:"rail",tag:"Light Rail",badge:"round"},
-      {route:"2",headsign:"Downtown Redmond",color:"#007CAD",textColor:"#FFFFFF",mode:"rail",tag:"Light Rail",badge:"round"},
-      {route:"2",headsign:"Lynnwood City Center",color:"#007CAD",textColor:"#FFFFFF",mode:"rail",tag:"Light Rail",badge:"round"},
-      {route:"535",headsign:"Bellevue",color:"#2B376E",textColor:"#FFFFFF",mode:"express",tag:"ST Express",badge:"square"},
-      {route:"Swift Orange",headsign:"McCollum Park",color:"#F24C21",textColor:"#FFFFFF",mode:"swift",tag:"Swift Orange",badge:"square",isSwift:true},
-      {route:"102",headsign:"Lynnwood City Center Station",color:"#0070C0",textColor:"#FFFFFF",mode:"bus",tag:"Community Transit",badge:"square"},
-      {route:"103",headsign:"Lynnwood City Center Station",color:"#0070C0",textColor:"#FFFFFF",mode:"bus",tag:"Community Transit",badge:"square"},
-      {route:"114",headsign:"Aurora Village",color:"#0070C0",textColor:"#FFFFFF",mode:"bus",tag:"Community Transit",badge:"square"},
-      {route:"117",headsign:"Mukilteo Ferry",color:"#0070C0",textColor:"#FFFFFF",mode:"bus",tag:"Community Transit",badge:"square"},
-      {route:"120",headsign:"UW Bothell/Cascadia College",color:"#0070C0",textColor:"#FFFFFF",mode:"bus",tag:"Community Transit",badge:"square"},
-      {route:"130",headsign:"Edmonds",color:"#0070C0",textColor:"#FFFFFF",mode:"bus",tag:"Community Transit",badge:"square"},
-      {route:"201",headsign:"Lynnwood City Center Station",color:"#0070C0",textColor:"#FFFFFF",mode:"bus",tag:"Community Transit",badge:"square"},
-      {route:"202",headsign:"Lynnwood City Center Station",color:"#0070C0",textColor:"#FFFFFF",mode:"bus",tag:"Community Transit",badge:"square"},
-    ],
     classify(type,agencyId,shortName){
       if(type===0&&agencyId==="40")return{mode:"rail",tag:"Light Rail",badge:"round"};
       if(type===3&&agencyId==="40")return{mode:"express",tag:"ST Express",badge:"square"};
@@ -321,12 +210,6 @@ const STATIONS={
     name:"Denny & Westlake",
     stops:{bus:["1_2255","1_2291","1_2260","1_2285"],streetcar:["1_26665","1_26690","1_26645"]},
     priority:["8","C","South Lake Union"],
-    manifest:[
-      {route:"8",headsign:"Mount Baker Transit Center",color:"#FDB71A",textColor:"#000000",mode:"bus",tag:"KC Bus",badge:"square"},
-      {route:"40",headsign:"Northgate Station Fremont",color:"#FDB71A",textColor:"#000000",mode:"bus",tag:"KC Bus",badge:"square"},
-      {route:"C",headsign:"South Lake Union Downtown Seattle",color:"#9C182F",textColor:"#FFFFFF",mode:"rapid",tag:"RapidRide",badge:"square"},
-      {route:"South Lake Union",headsign:"Lake Union",color:"#F47836",textColor:"#FFFFFF",mode:"streetcar",tag:"South Lake Union Streetcar",badge:"square"},
-    ],
     classify(type,agencyId,shortName){
       if(type===0&&agencyId==="23")return{mode:"streetcar",tag:shortName.replace(/\s*Streetcar$/i," Streetcar").trim(),badge:"square"};
       if(type===3&&shortName.match(/Line$/i))return{mode:"rapid",tag:"RapidRide",badge:"square"};
@@ -782,15 +665,10 @@ function switchLocation(type,id){
   renderLocationMenu();
   updateHeaderStar();
   document.getElementById("locMenu").classList.remove("open");
-  // 3-phase boot for new location
-  showManifest();
-  if(!cache.length) document.getElementById("results").innerHTML='<div class="loading">Loading…</div>';
-  (async function(){
-    await loadScheduleETAs();
-    await update();
-    if(refreshInterval) clearInterval(refreshInterval);
-    refreshInterval=setInterval(animatedUpdate,30000);
-  })();
+  document.getElementById("results").innerHTML='<div class="loading">Loading…</div>';
+  preload();update();
+  if(refreshInterval) clearInterval(refreshInterval);
+  refreshInterval=setInterval(animatedUpdate,30000);
 }
 
 function getAllStopIds(){return Object.values(CFG.stops).flat();}
@@ -831,45 +709,24 @@ async function fetchStop(id){
   });
 }
 
-// Merge a single stop's arrivals into routeCache and re-render
-function mergeStopData(departures){
-  for(const d of departures){
-    const dirKey=d.headsign.split(/[\s-]/)[0]||d.headsign;
+async function fetchAll(){
+  const ids=getAllStopIds();
+  const res=await Promise.allSettled(ids.map(fetchStop));
+  const deps=[];for(const r of res)if(r.status==="fulfilled")deps.push(...r.value);
+  // Group by route+mode+direction (normalize headsign to first word for stability)
+  const groups={};
+  for(const d of deps){
+    const dirKey=d.headsign.split(/[\s-]/)[0]||d.headsign; // stable first word
     const k=d.route+"|"+d.mode+"|"+dirKey;
-    if(!routeCache[k]){
-      routeCache[k]={...d,etas:[{ms:d.ms,live:d.live}]};
-    } else {
-      // If live, replace any scheduled ETA within 3 min of this one
-      if(d.live){
-        routeCache[k].etas=routeCache[k].etas.filter(e=>{
-          if(!e.live&&Math.abs(e.ms-d.ms)<180000) return false;
-          return true;
-        });
-        routeCache[k].etas.push({ms:d.ms,live:d.live});
-      } else {
-        // Don't add scheduled if a live ETA is already within 3 min
-        const hasLiveNearby=routeCache[k].etas.some(e=>e.live&&Math.abs(e.ms-d.ms)<180000);
-        if(!hasLiveNearby){
-          routeCache[k].etas.push({ms:d.ms,live:d.live});
-        }
-      }
-      // Keep longest headsign
-      if(d.headsign.length>routeCache[k].headsign.length) routeCache[k].headsign=d.headsign;
-      // Dedupe by exact ms+live, sort, cap at 3
-      const seen=new Set();
-      routeCache[k].etas=routeCache[k].etas.filter(e=>{const key=e.ms+"|"+e.live;if(seen.has(key))return false;seen.add(key);return true;});
-      routeCache[k].etas.sort((a,b)=>a.ms-b.ms);
-      routeCache[k].etas=routeCache[k].etas.slice(0,3);
-    }
+    if(!groups[k])groups[k]={...d,etas:[]};
+    groups[k].etas.push({ms:d.ms,live:d.live});
+    // Keep the longest headsign for display
+    if(d.headsign.length>groups[k].headsign.length)groups[k].headsign=d.headsign;
   }
-}
-
-function renderFromCache(){
-  const sorted=Object.values(routeCache).sort(prioritySort);
-  cache.length=0;cache.push(...sorted);
-  const el=document.getElementById("results");
-  el.innerHTML=cache.map(renderCard).join("");
-  attachLongPress();
+  const list=Object.values(groups);
+  for(const g of list){g.etas.sort((a,b)=>a.ms-b.ms);g.etas=g.etas.slice(0,3);}
+  list.sort((a,b)=>(a.etas[0]?.ms||Infinity)-(b.etas[0]?.ms||Infinity));
+  return list;
 }
 
 function etaText(ms){const m=Math.round((ms-Date.now())/60000);return m<=0?"NOW":`${m}`;}
@@ -913,60 +770,39 @@ function formatTime(ms){
   return d.toLocaleTimeString("en-US",{hour:"numeric",minute:"2-digit",hour12:true});
 }
 
-function renderPill(eta,idx){
+function renderPill(eta){
   const mins=Math.round((eta.ms-Date.now())/60000);
+  // Expired: more than 1 min past due — hide pill
   if(mins<-1)return"";
-  // Live + due now: neon green NOW capsule
-  if(mins<=0&&eta.live)return`<div class="pill now"><span class="pill-num">NOW</span></div>`;
+  // Live + due now: pulsing green NOW
+  if(mins<=0&&eta.live)return`<div class="pill now"><span class="pill-num">NOW</span><span class="pill-min">min</span></div>`;
   // Scheduled + due now: grey "0"
   if(mins<=0&&!eta.live)return`<div class="pill sched"><span class="pill-num">0</span><span class="pill-min">min</span></div>`;
-  // Urgency class based on position
-  const urgClass=eta.live?(idx===0?"live-near":"live-far"):"sched";
-  const liveIcon=eta.live?`<span class="material-symbols-rounded pill-live">rss_feed</span>`:"";
-  return`<div class="pill ${urgClass}">${liveIcon}<span class="pill-num">${mins}</span><span class="pill-min">min</span></div>`;
+  // Live with time remaining
+  if(eta.live)return`<div class="pill live"><span class="material-icons pill-live">rss_feed</span><span class="pill-num">${mins}</span><span class="pill-min">min</span></div>`;
+  // Scheduled with time remaining
+  return`<div class="pill sched"><span class="pill-num">${mins}</span><span class="pill-min">min</span></div>`;
 }
 
 function renderCard(g){
   const isIcon=g.badge==="square"&&(g.mode==="streetcar"||g.mode==="monorail"||g.mode==="swift");
   const numClass=g.route.length>2?"sm":"";
-  const isRail=g.mode==="rail";
   const badgeInner=isIcon
-    ?`<span class="badge-icon">${g.mode==="monorail"?"train":g.mode==="swift"?"directions_bus":"tram"}</span>`
-    :`<span class="badge-num ${numClass}" style="color:${g.textColor}">${g.route}</span>${isRail?'<span class="badge-sub">LINE</span>':''}`;
+    ?`<span class="material-icons badge-icon">${g.mode==="monorail"?"train":g.mode==="swift"?"directions_bus":"tram"}</span>`
+    :`<span class="badge-num ${numClass}" style="color:${g.textColor}">${g.route}</span>`;
   const pills=g.nextDayTimes
     ?`<div class="next-day-times"><span>${formatTime(g.nextDayTimes[0])}</span></div>`
-    :g.etas.map((eta,i)=>renderPill(eta,i)).join("");
+    :g.etas.map(renderPill).join("");
   const cardKey=g.route+"|"+g.headsign+"|"+g.mode;
   const isPinned=isRoutePinned(cardKey,g.route);
-  const pinHtml=isPinned?'<span class="card-pin"><svg viewBox="0 0 24 24"><path d="M20 15.31L23.31 12 20 8.69V4h-4.69L12 .69 8.69 4H4v4.69L.69 12 4 15.31V20h4.69L12 23.31 15.31 20H20v-4.69z"/></svg></span>':'';
-  const pinnedClass=isPinned?' pinned':'';
-  // M3 Tonal palette colors per route
-  const TONES={
-    "#28813F":{dark:{card:"#141a14",tagBg:"#14411f",tagTxt:"#49d26d"},light:{card:"#d0e3d5",tagBg:"rgba(255,255,255,0.7)",tagTxt:"#1e612f"}},
-    "#007CAD":{dark:{card:"#12171a",tagBg:"#003e56",tagTxt:"#00b8ff"},light:{card:"#c7e2ed",tagBg:"rgba(255,255,255,0.7)",tagTxt:"#005d82"}},
-    "#FDB71A":{dark:{card:"#1a1712",tagBg:"#7e5c0d",tagTxt:"#ffe500"},light:{card:"#ffefcd",tagBg:"rgba(255,255,255,0.7)",tagTxt:"#be8914"}},
-    "#9C182F":{dark:{card:"#1a1214",tagBg:"#4e0b17",tagTxt:"#fd3154"},light:{card:"#e9ccd1",tagBg:"rgba(255,255,255,0.7)",tagTxt:"#751122"}},
-    "#2B376E":{dark:{card:"#12141f",tagBg:"#161c37",tagTxt:"#7083d7"},light:{card:"#cdd2ee",tagBg:"rgba(255,255,255,0.7)",tagTxt:"#132686"}},
-    "#E5007D":{dark:{card:"#1a0f14",tagBg:"#72003e",tagTxt:"#ff00be"},light:{card:"#f9c7e2",tagBg:"rgba(255,255,255,0.7)",tagTxt:"#ac005e"}},
-    "#F47836":{dark:{card:"#1a0f14",tagBg:"#72003e",tagTxt:"#ff00be"},light:{card:"#f9c7e2",tagBg:"rgba(255,255,255,0.7)",tagTxt:"#ac005e"}},
-    "#666672":{dark:{card:"#141417",tagBg:"#333339",tagTxt:"#9090a4"},light:{card:"#dddde0",tagBg:"rgba(255,255,255,0.7)",tagTxt:"#4d4d56"}},
-    "#F24C21":{dark:{card:"#1a140f",tagBg:"#773911",tagTxt:"#ffa427"},light:{card:"#fbe0ce",tagBg:"rgba(255,255,255,0.7)",tagTxt:"#b25619"}},
-    "#006CFF":{dark:{card:"#0f141f",tagBg:"#003680",tagTxt:"#00a1ff"},light:{card:"#c7dfff",tagBg:"rgba(255,255,255,0.7)",tagTxt:"#0051bf"}},
-    "#0070C0":{dark:{card:"#0f141f",tagBg:"#003680",tagTxt:"#00a1ff"},light:{card:"#c7dfff",tagBg:"rgba(255,255,255,0.7)",tagTxt:"#0051bf"}}
-  };
-  const isLight=document.body.classList.contains("light");
-  const tone=TONES[g.color];
-  const theme=isLight?"light":"dark";
-  const cardBg=tone?tone[theme].card:(isLight?`rgba(200,200,200,0.3)`:`rgba(255,255,255,0.08)`);
-  const tagBg=tone?tone[theme].tagBg:(isLight?"rgba(255,255,255,0.7)":"rgba(255,255,255,0.06)");
-  const tagColor=tone?tone[theme].tagTxt:(isLight?"#333":"#aaa");
-  return`<div class="card${pinnedClass}" data-key="${cardKey}" data-route="${g.route}" style="background:${cardBg}">
+  const pinHtml=isPinned?'<span class="material-icons card-pin">star</span>':'';
+  return`<div class="card" data-key="${cardKey}" data-route="${g.route}">
     ${pinHtml}
     <div class="badge ${g.badge}" style="background:${g.color}">
       ${badgeInner}
     </div>
     <div class="info">
-      <div class="tag" style="background:${tagBg};color:${tagColor}">${g.tag}</div>
+      <div class="tag" style="background:${g.color};color:${g.textColor}">${g.tag}</div>
       <div class="dest">${g.headsign}</div>
     </div>
     <div class="etas">${pills}</div>
@@ -1055,39 +891,56 @@ function togglePriority(cardEl){
 
 async function update(){
   document.getElementById("updated").textContent="Updating...";
-  const ids=getAllStopIds();
-  let completed=0;
-  const total=ids.length;
-  // Clear live ETAs from cache before refreshing (keep route info)
-  for(const k in routeCache){
-    if(routeCache[k].etas&&routeCache[k].etas.some(e=>e.live)){
-      routeCache[k].etas=routeCache[k].etas.filter(e=>!e.live);
+  try{
+    const groups=await fetchAll();
+    // Merge new data into persistent cache
+    for(const g of groups){
+      const dirKey=g.headsign.split(/[\s-]/)[0]||g.headsign;
+      const k=g.route+"|"+g.mode+"|"+dirKey;
+      routeCache[k]={...g};
     }
-  }
-  // Fire all fetches, render as each completes
-  const promises=ids.map(async id=>{
-    try{
-      const deps=await fetchStop(id);
-      if(deps.length){
-        mergeStopData(deps);
-        renderFromCache();
+    // Remove routes whose last ETA is more than 30 min in the past
+    const now=Date.now();
+    for(const k in routeCache){
+      const g=routeCache[k];
+      const latest=g.etas[g.etas.length-1];
+      if(latest&&latest.ms<now-30*60000){
+        // Don't delete — mark for next-day fetch
+        g.etas=[];
       }
-    }catch(e){}
-    completed++;
-    document.getElementById("updated").textContent=`Updating... ${completed}/${total}`;
-  });
-  await Promise.all(promises);
-  // Clean up expired ETAs
-  const now=Date.now();
-  for(const k in routeCache){
-    const g=routeCache[k];
-    if(g.etas&&g.etas.length){
-      g.etas=g.etas.filter(e=>e.ms>now-60000);
-      if(!g.etas.length) delete routeCache[k].nextDayTimes;
     }
+    // If any routes have empty ETAs, fetch next-day schedule
+    const emptyRoutes=Object.values(routeCache).filter(g=>!g.etas.length);
+    if(emptyRoutes.length){
+      const allStopIds=getAllStopIds();
+      const nextDay=await fetchNextDaySchedule(allStopIds);
+      for(const nd of nextDay){
+        const dirKey=nd.headsign.split(/[\s-]/)[0]||nd.headsign;
+        const k=nd.route+"|"+nd.mode+"|"+dirKey;
+        if(routeCache[k]&&!routeCache[k].etas.length){
+          routeCache[k].nextDayTimes=nd.nextDayTimes;
+        } else if(!routeCache[k]){
+          routeCache[k]={...nd,etas:[]};
+        }
+      }
+    }
+    // Clear nextDayTimes for routes that have active ETAs
+    for(const k in routeCache){
+      if(routeCache[k].etas.length)delete routeCache[k].nextDayTimes;
+    }
+    // Sort by earliest upcoming ETA
+    // Sort: prioritized routes first, then by earliest ETA
+    const sorted=Object.values(routeCache).sort(prioritySort);
+    cache.length=0;cache.push(...sorted);
+  }catch(e){console.error(e);}
+  const el=document.getElementById("results");
+  if(!cache.length){
+    el.innerHTML='<div class="loading" style="grid-column:1/-1;text-align:center;font-size:20px;padding:40px">No transit results found</div>';
+  } else {
+    el.innerHTML=cache.map(renderCard).join("");
   }
-  renderFromCache();
-  document.getElementById("updated").textContent=`v5.1 · Updated ${new Date().toLocaleTimeString("en-US",{hour:"2-digit",minute:"2-digit",second:"2-digit"})}`;
+  attachLongPress();
+  document.getElementById("updated").textContent=`Updated ${new Date().toLocaleTimeString("en-US",{hour:"2-digit",minute:"2-digit",second:"2-digit"})}`;
   document.getElementById("dot").classList.remove("error");
 }
 
@@ -1123,41 +976,9 @@ function animatedUpdate(){
 function tick(){document.getElementById("clock").textContent=new Date().toLocaleTimeString("en-US",{hour:"2-digit",minute:"2-digit",hour12:true});}
 
 // Preload: fetch today's schedule to show cards immediately
-// === PHASE 1: Instant display from manifest ===
-function showManifest(){
-  if(!CFG.manifest||!CFG.manifest.length) return;
-  for(const m of CFG.manifest){
-    const dirKey=m.headsign.split(/[\s-]/)[0]||m.headsign;
-    const k=m.route+"|"+m.mode+"|"+dirKey;
-    if(!routeCache[k]) routeCache[k]={...m,etas:[],dirKey:dirKey};
-  }
-  const sorted=Object.values(routeCache).sort(prioritySort);
-  cache.length=0;cache.push(...sorted);
-  const el=document.getElementById("results");
-  el.innerHTML=cache.map(renderCard).join("");
-  attachLongPress();
-  document.getElementById("updated").textContent="Loading schedules...";
-}
-
-// === PHASE 2: Schedule-based ETAs ===
-async function loadScheduleETAs(){
-  const now=Date.now();
-  // Try cache first
-  const cached=loadScheduleCache(currentStation);
-  if(cached&&cached.length){
-    applyScheduleData(cached,now);
-    document.getElementById("updated").textContent="Schedule loaded (cached) — fetching live data...";
-    // Refresh cache in background if older than 1 hour
-    const raw=localStorage.getItem('nextup_schedule_cache');
-    if(raw){try{const all=JSON.parse(raw);const entry=all[currentStation];if(entry&&now-entry.timestamp>3600000){fetchAndCacheSchedule(now);}}catch(e){}}
-    return;
-  }
-  await fetchAndCacheSchedule(now);
-}
-
-async function fetchAndCacheSchedule(now){
+async function preload(){
   const allStopIds=getAllStopIds();
-  const allItems=[];
+  const now=Date.now();
   const results=await Promise.allSettled(allStopIds.map(async id=>{
     const r=await fetch(`${OBA}/schedule-for-stop/${id}.json?key=${KEY}`);
     if(!r.ok)return[];
@@ -1168,19 +989,14 @@ async function fetchAndCacheSchedule(now){
       const rt=refs[sr.routeId]||{};
       const cls=classify(rt.type,rt.agencyId,rt.shortName||"");
       for(const dir of sr.stopRouteDirectionSchedules||[]){
-        const allTimes=(dir.scheduleStopTimes||[]).map(t=>t.arrivalTime||t.departureTime).filter(Boolean);
-        if(!allTimes.length)continue;
-        const route=parseRoute(rt.shortName||"?",rt.type,rt.agencyId);
-        const headsign=dir.tripHeadsign||rt.longName||"";
-        const dirKey=headsign.split(/[\s-]/)[0]||headsign;
+        const times=(dir.scheduleStopTimes||[]).filter(t=>(t.arrivalTime||t.departureTime)>now);
+        if(!times.length)continue;
         items.push({
-          route:route,
-          headsign:headsign,
-          dirKey:dirKey,
+          route:parseRoute(rt.shortName||"?",rt.type,rt.agencyId),
+          headsign:dir.tripHeadsign||rt.longName||"",
           color:rt.color?`#${rt.color}`:"#666",
           textColor:rt.textColor?`#${rt.textColor}`:"#fff",
           ...cls,
-          scheduleTimes:allTimes,
         });
       }
     }
@@ -1188,45 +1004,28 @@ async function fetchAndCacheSchedule(now){
   }));
   for(const r of results){
     if(r.status!=="fulfilled")continue;
-    allItems.push(...r.value);
-  }
-  // Save full schedule to cache (with all times, not just upcoming)
-  saveScheduleCache(currentStation,allItems);
-  applyScheduleData(allItems,now);
-  document.getElementById("updated").textContent="Schedule loaded — fetching live data...";
-}
-
-function applyScheduleData(items,now){
-  for(const item of items){
-    const upcomingTimes=(item.scheduleTimes||[]).filter(t=>t>now);
-    if(!upcomingTimes.length)continue;
-    const etas=upcomingTimes.slice(0,3).map(t=>({ms:t,live:false}));
-    const k=item.route+"|"+item.mode+"|"+item.dirKey;
-    if(routeCache[k]){
-      if(!routeCache[k].etas.length){
-        routeCache[k].etas=etas;
-      }
-      if(item.headsign.length>(routeCache[k].headsign||"").length){
-        routeCache[k].headsign=item.headsign;
-      }
-    } else {
-      routeCache[k]={...item,etas:etas};
+    for(const item of r.value){
+      const dirKey=item.headsign.split(/[\s-]/)[0]||item.headsign;
+      const k=item.route+"|"+item.mode+"|"+dirKey;
+      if(!routeCache[k])routeCache[k]={...item,etas:[]};
     }
   }
+  // Render preloaded data
   const sorted=Object.values(routeCache).sort(prioritySort);
   cache.length=0;cache.push(...sorted);
   const el=document.getElementById("results");
   el.innerHTML=cache.map(renderCard).join("");
   attachLongPress();
+  document.getElementById("updated").textContent="Schedule loaded";
 }
 
 tick();setInterval(tick,1000);
-// Boot: Phase 1 → Phase 2 → Phase 3 (update)
+// Boot: start preload and live fetch in parallel
 let refreshInterval;
 (async function boot(){
-  showManifest();
-  await loadScheduleETAs();
-  await update();
+  const preloadDone=preload();
+  const updateDone=update();
+  await Promise.all([preloadDone,updateDone]);
   refreshInterval=setInterval(animatedUpdate,30000);
 })();
 let rt;window.addEventListener("resize",()=>{clearTimeout(rt);rt=setTimeout(update,200);});
@@ -1236,45 +1035,6 @@ renderLocationMenu();
 document.getElementById("creationModal").addEventListener("click",function(e){
   if(e.target===this) closeCreationModal();
 });
-// Onboarding
-function dismissOnboard(){
-  document.getElementById("onboardModal").style.display="none";
-  localStorage.setItem("nextup_onboarded","1");
-}
-if(!localStorage.getItem("nextup_onboarded")){
-  document.getElementById("onboardModal").style.display="flex";
-}
-function toggleTheme(){
-  document.body.classList.toggle("light");
-  var isLight=document.body.classList.contains("light");
-  document.getElementById("themeLabel").textContent=isLight?"Dark":"Light";
-  localStorage.setItem("nextup_theme",isLight?"light":"dark");
-  // Re-render cards to update tint colors for light theme
-  var el=document.getElementById("results");
-  if(cache.length) el.innerHTML=cache.map(renderCard).join("");
-  attachLongPress();
-}
-// Auto-detect system theme on load
-(function(){
-  var saved=localStorage.getItem("nextup_theme");
-  var isLight;
-  if(saved){isLight=saved==="light";}
-  else{isLight=window.matchMedia&&window.matchMedia("(prefers-color-scheme:light)").matches;}
-  if(isLight) document.body.classList.add("light");
-  document.getElementById("themeLabel").textContent=isLight?"Dark":"Light";
-  // Listen for system theme changes
-  if(window.matchMedia){
-    window.matchMedia("(prefers-color-scheme:light)").addEventListener("change",function(e){
-      if(localStorage.getItem("nextup_theme")) return; // user override, don't auto-switch
-      if(e.matches) document.body.classList.add("light");
-      else document.body.classList.remove("light");
-      document.getElementById("themeLabel").textContent=document.body.classList.contains("light")?"Dark":"Light";
-      var el=document.getElementById("results");
-      if(cache.length) el.innerHTML=cache.map(renderCard).join("");
-      attachLongPress();
-    });
-  }
-})();
 </script>
 </body>
 </html>
