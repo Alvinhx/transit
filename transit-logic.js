@@ -374,6 +374,62 @@
     return override !== null ? override : defaultPriority;
   }
 
+  // ===== Schedule Cache =====
+
+  var SCHEDULE_CACHE_KEY = 'nextup_schedule_cache';
+
+  /**
+   * Get the day type key: 'weekday', 'saturday', or 'sunday'
+   */
+  function getDayType() {
+    var day = new Date().getDay();
+    if (day === 0) return 'sunday';
+    if (day === 6) return 'saturday';
+    return 'weekday';
+  }
+
+  /**
+   * Load cached schedule data for a location.
+   * Returns the cached data if it's from the same day type, otherwise null.
+   * @param {string} locationId
+   * @returns {Array|null} Array of route objects with etas, or null if no valid cache
+   */
+  function loadScheduleCache(locationId) {
+    try {
+      var raw = localStorage.getItem(SCHEDULE_CACHE_KEY);
+      if (!raw) return null;
+      var all = JSON.parse(raw);
+      var entry = all[locationId];
+      if (!entry) return null;
+      // Check if same day type and not older than 24 hours
+      var now = Date.now();
+      if (entry.dayType !== getDayType()) return null;
+      if (now - entry.timestamp > 24 * 60 * 60 * 1000) return null;
+      return entry.data;
+    } catch (e) {
+      return null;
+    }
+  }
+
+  /**
+   * Save schedule data to cache for a location.
+   * @param {string} locationId
+   * @param {Array} data - Array of route objects with schedule times
+   */
+  function saveScheduleCache(locationId, data) {
+    try {
+      var raw = localStorage.getItem(SCHEDULE_CACHE_KEY);
+      var all = {};
+      if (raw) { try { all = JSON.parse(raw) || {}; } catch(e) { all = {}; } }
+      all[locationId] = {
+        dayType: getDayType(),
+        timestamp: Date.now(),
+        data: data
+      };
+      localStorage.setItem(SCHEDULE_CACHE_KEY, JSON.stringify(all));
+    } catch (e) {}
+  }
+
   // ===== Exports =====
   return {
     STORAGE_KEYS: STORAGE_KEYS,
@@ -393,6 +449,9 @@
     getEffectivePriority: getEffectivePriority,
     loadDefaultLocation: loadDefaultLocation,
     saveDefaultLocation: saveDefaultLocation,
-    clearDefaultLocation: clearDefaultLocation
+    clearDefaultLocation: clearDefaultLocation,
+    loadScheduleCache: loadScheduleCache,
+    saveScheduleCache: saveScheduleCache,
+    getDayType: getDayType
   };
 });
