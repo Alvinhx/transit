@@ -14,6 +14,8 @@
 })(typeof globalThis !== 'undefined' ? globalThis : typeof self !== 'undefined' ? self : this, function () {
   'use strict';
 
+  var VERSION = '2.0';
+
   // ===== Storage Keys =====
   var STORAGE_KEYS = {
     customLocations: 'nextup_custom_locations',
@@ -430,8 +432,39 @@
     } catch (e) {}
   }
 
+  // ===== Normalize Direction Key =====
+
+  /**
+   * Normalize a headsign string into a stable direction key for cache keying.
+   * Handles headsign variations from different API endpoints (schedule vs live).
+   * Strategy: lowercase, strip common suffixes, collapse whitespace, take first 2 words.
+   * @param {string} headsign - Raw headsign string from OBA API
+   * @returns {string} Normalized direction key
+   */
+  function normalizeDirKey(headsign) {
+    if (typeof headsign !== 'string' || !headsign.trim()) return '';
+    var s = headsign.toLowerCase();
+    // Strip common suffixes (order matters: longer phrases first)
+    var suffixes = ['transit center', 'park & ride', 'park and ride', 'p&r', 'station'];
+    for (var i = 0; i < suffixes.length; i++) {
+      // Remove all occurrences as whole words (not just trailing)
+      var re = new RegExp('\\b' + suffixes[i].replace(/[&]/g, '\\&') + '\\b', 'gi');
+      s = s.replace(re, ' ');
+    }
+    // Collapse multiple whitespace to single space and trim
+    s = s.replace(/\s+/g, ' ').trim();
+    if (!s) return '';
+    // Take first significant word only (hyphenated words count as one)
+    // This ensures "U-District Station Capitol Hill" and "U-District Station" produce the same key
+    // Since the full cache key includes route number + mode, single-word dirKey is sufficient
+    // to distinguish directions within the same route
+    var words = s.split(' ');
+    return words[0];
+  }
+
   // ===== Exports =====
   return {
+    VERSION: VERSION,
     STORAGE_KEYS: STORAGE_KEYS,
     loadCustomLocations: loadCustomLocations,
     saveCustomLocations: saveCustomLocations,
@@ -452,6 +485,7 @@
     clearDefaultLocation: clearDefaultLocation,
     loadScheduleCache: loadScheduleCache,
     saveScheduleCache: saveScheduleCache,
-    getDayType: getDayType
+    getDayType: getDayType,
+    normalizeDirKey: normalizeDirKey
   };
 });

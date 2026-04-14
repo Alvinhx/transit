@@ -207,7 +207,7 @@ body.light .card-pin svg{fill:#E99300}
   <div class="results" id="results"><div class="loading">Loading…</div></div>
   <footer>
     <button class="theme-toggle" onclick="toggleTheme()"><span class="material-icons" style="font-size:14px">brightness_6</span><span id="themeLabel">Light</span></button>
-    <span id="updated">v5.1</span>
+    <span id="updated">v5.4-2.0</span>
   </footer>
 </div>
 
@@ -262,7 +262,7 @@ const KEY="TEST";
 const STATIONS={
   caphill:{
     name:"Capitol Hill",
-    stops:{rail:["40_99610","40_99603"],bus:["1_11180","1_11050","1_29270","1_29262","1_11060"],streetcar:["1_11175"]},
+    stops:{rail:["40_99610","40_99603"],bus:["1_11180","1_29270","1_29262","1_11060"],streetcar:["1_11175"]},
     priority:["1","2","8","49","11","12","First Hill"],
     manifest:[
       {route:"1",headsign:"Federal Way Downtown",color:"#28813F",textColor:"#FFFFFF",mode:"rail",tag:"Light Rail",badge:"round"},
@@ -764,6 +764,7 @@ function renderLocationMenu(){
 }
 
 function switchLocation(type,id){
+  _locationGeneration++;
   currentType=type;
   currentStation=id;
   if(type==='builtin'){
@@ -776,6 +777,7 @@ function switchLocation(type,id){
     else{CFG=STATIONS.caphill;currentType='builtin';currentStation='caphill';}
   }
   for(var k in routeCache) delete routeCache[k];
+  for(var dk in _directionMap) delete _directionMap[dk];
   cache.length=0;
   document.getElementById("stationName").textContent=CFG.name;
   saveActiveLocation(currentType,currentStation);
@@ -788,11 +790,13 @@ function switchLocation(type,id){
   (async function(){
     await loadScheduleETAs();
     await update();
+    applyNextDayFromSchedule();
     if(refreshInterval) clearInterval(refreshInterval);
     refreshInterval=setInterval(animatedUpdate,30000);
   })();
 }
 
+var _locationGeneration=0; // incremented on every location switch to cancel stale fetches
 function getAllStopIds(){return Object.values(CFG.stops).flat();}
 
 // Set station name in header
@@ -831,14 +835,52 @@ async function fetchStop(id){
   });
 }
 
-// Merge a single stop's arrivals into routeCache and re-render
+// Track which route keys received new data in the current refresh cycle
+var _routesUpdatedThisCycle=new Set();
+
+// Direction map: maps "route|mode" -> [headsign0, headsign1]
+// Built from schedule data, used to resolve live headsigns to direction index 0 or 1
+var _directionMap={};
+
+// Resolve a headsign to a direction index (0 or 1) using the direction map
+function resolveDir(route,mode,headsign){
+  var mapKey=route+"|"+mode;
+  var dirs=_directionMap[mapKey];
+  if(!dirs||!dirs.length) {
+    // No map yet — create entry with this as direction 0
+    _directionMap[mapKey]=[headsign];
+    return 0;
+  }
+  // Check if headsign matches an existing direction (first-word comparison)
+  var hw=normalizeDirKey(headsign);
+  for(var i=0;i<dirs.length;i++){
+    if(normalizeDirKey(dirs[i])===hw) return i;
+  }
+  // New direction — add it (max 2)
+  if(dirs.length<2){
+    dirs.push(headsign);
+    return dirs.length-1;
+  }
+  // Already have 2 directions, pick closest match (shouldn't happen often)
+  return 0;
+}
+
+// Merge a single stop's arrivals into routeCache
 function mergeStopData(departures){
   for(const d of departures){
-    const dirKey=d.headsign.split(/[\s-]/)[0]||d.headsign;
-    const k=d.route+"|"+d.mode+"|"+dirKey;
+    const di=resolveDir(d.route,d.mode,d.headsign);
+    const k=d.route+"|"+d.mode+"|"+di;
+    // Track that this route received new data this cycle
+    _routesUpdatedThisCycle.add(k);
     if(!routeCache[k]){
-      routeCache[k]={...d,etas:[{ms:d.ms,live:d.live}]};
+      routeCache[k]={...d,etas:[{ms:d.ms,live:d.live}],missedCycles:0};
     } else {
+      routeCache[k].missedCycles=0;
+      // On first new data for this route in this cycle, strip old live ETAs (fetch-then-replace)
+      if(!routeCache[k]._liveReplacedThisCycle){
+        routeCache[k].etas=routeCache[k].etas.filter(e=>!e.live);
+        routeCache[k]._liveReplacedThisCycle=true;
+      }
       // If live, replace any scheduled ETA within 3 min of this one
       if(d.live){
         routeCache[k].etas=routeCache[k].etas.filter(e=>{
@@ -853,8 +895,8 @@ function mergeStopData(departures){
           routeCache[k].etas.push({ms:d.ms,live:d.live});
         }
       }
-      // Keep longest headsign
-      if(d.headsign.length>routeCache[k].headsign.length) routeCache[k].headsign=d.headsign;
+      // Prefer shorter headsign (live destination sign is cleaner than schedule with stop context)
+      if(d.headsign&&d.headsign.length<routeCache[k].headsign.length) routeCache[k].headsign=d.headsign;
       // Dedupe by exact ms+live, sort, cap at 3
       const seen=new Set();
       routeCache[k].etas=routeCache[k].etas.filter(e=>{const key=e.ms+"|"+e.live;if(seen.has(key))return false;seen.add(key);return true;});
@@ -865,6 +907,17 @@ function mergeStopData(departures){
 }
 
 function renderFromCache(){
+  const now=Date.now();
+  // Fallback: if a route has no ETAs but has scheduleTimes, generate ETAs from schedule
+  for(const k in routeCache){
+    const entry=routeCache[k];
+    if((!entry.etas||!entry.etas.length)&&entry.scheduleTimes&&entry.scheduleTimes.length){
+      const upcoming=entry.scheduleTimes.filter(t=>t>now);
+      if(upcoming.length){
+        entry.etas=upcoming.slice(0,3).map(t=>({ms:t,live:false}));
+      }
+    }
+  }
   const sorted=Object.values(routeCache).sort(prioritySort);
   cache.length=0;cache.push(...sorted);
   const el=document.getElementById("results");
@@ -874,38 +927,29 @@ function renderFromCache(){
 
 function etaText(ms){const m=Math.round((ms-Date.now())/60000);return m<=0?"NOW":`${m}`;}
 
-// Fetch next-day schedule for routes with no current ETAs
-async function fetchNextDaySchedule(stopIds){
-  const tomorrow=new Date();
-  tomorrow.setDate(tomorrow.getDate()+1);
-  const dateStr=tomorrow.toISOString().split("T")[0];
-  const nextDay=[];
-  for(const id of stopIds){
-    try{
-      const r=await fetch(`${OBA}/schedule-for-stop/${id}.json?key=${KEY}&date=${dateStr}`);
-      if(!r.ok)continue;
-      const j=await r.json();
-      const refs={};for(const rt of j.data.references.routes||[])refs[rt.id]=rt;
-      for(const sr of j.data.entry.stopRouteSchedules||[]){
-        const rt=refs[sr.routeId]||{};
-        const cls=classify(rt.type,rt.agencyId,rt.shortName||"");
-        for(const dir of sr.stopRouteDirectionSchedules||[]){
-          const times=dir.scheduleStopTimes||[];
-          if(!times.length)continue;
-          const first3=times.slice(0,3).map(t=>t.arrivalTime||t.departureTime);
-          nextDay.push({
-            route:parseRoute(rt.shortName||"?",rt.type,rt.agencyId),
-            headsign:dir.tripHeadsign||rt.longName||"",
-            color:rt.color?`#${rt.color}`:"#666",
-            textColor:rt.textColor?`#${rt.textColor}`:"#fff",
-            ...cls,
-            nextDayTimes:first3,
-          });
-        }
-      }
-    }catch(e){}
+// Compute next-day first departure from the schedule timetable (no API call needed).
+// The allScheduleTimes array has all times for today. The first time in the array
+// is approximately when service starts. Adding ~24h gives tomorrow's first departure.
+function applyNextDayFromSchedule(){
+  var now=Date.now();
+  for(var k in routeCache){
+    var entry=routeCache[k];
+    // Only apply to routes with no current ETAs and no nextDayTimes already set
+    if(entry.etas&&entry.etas.length) continue;
+    if(entry.nextDayTimes) continue;
+    // Need allScheduleTimes to compute next day
+    if(!entry.allScheduleTimes||!entry.allScheduleTimes.length) continue;
+    // Check if service has ended (all times in the past)
+    var upcoming=entry.allScheduleTimes.filter(function(t){return t>now;});
+    if(upcoming.length>0) continue; // still has upcoming service today
+    // Service ended — compute tomorrow's first departure from today's first time + 24h
+    var sorted=entry.allScheduleTimes.slice().sort(function(a,b){return a-b;});
+    var firstToday=sorted[0];
+    var oneDayMs=24*60*60*1000;
+    // Tomorrow's first departure ≈ today's first departure + 24h
+    entry.nextDayTimes=[firstToday+oneDayMs];
   }
-  return nextDay;
+  renderFromCache();
 }
 
 function formatTime(ms){
@@ -933,9 +977,23 @@ function renderCard(g){
   const badgeInner=isIcon
     ?`<span class="badge-icon">${g.mode==="monorail"?"train":g.mode==="swift"?"directions_bus":"tram"}</span>`
     :`<span class="badge-num ${numClass}" style="color:${g.textColor}">${g.route}</span>${isRail?'<span class="badge-sub">LINE</span>':''}`;
-  const pills=g.nextDayTimes
-    ?`<div class="next-day-times"><span>${formatTime(g.nextDayTimes[0])}</span></div>`
-    :g.etas.map((eta,i)=>renderPill(eta,i)).join("");
+  // If nextDayTimes set, or if nearest ETA is >90 min away, show as clock time
+  // Filter out individual ETAs >90 min when there are closer ones
+  var pills;
+  if(g.nextDayTimes){
+    pills=`<div class="next-day-times"><span>${formatTime(g.nextDayTimes[0])}</span></div>`;
+  } else if(g.etas.length){
+    var nearestMin=Math.round((g.etas[0].ms-Date.now())/60000);
+    if(nearestMin>90){
+      pills=`<div class="next-day-times"><span>${formatTime(g.etas[0].ms)}</span></div>`;
+    } else {
+      var relevantEtas=g.etas.filter(function(eta){return Math.round((eta.ms-Date.now())/60000)<=90;});
+      if(!relevantEtas.length) relevantEtas=[g.etas[0]];
+      pills=relevantEtas.map((eta,i)=>renderPill(eta,i)).join("");
+    }
+  } else {
+    pills=`<div class="pill sched"><span class="pill-num" style="font-size:18px;color:var(--dim)">···</span></div>`;
+  }
   const cardKey=g.route+"|"+g.headsign+"|"+g.mode;
   const isPinned=isRoutePinned(cardKey,g.route);
   const pinHtml=isPinned?'<span class="card-pin"><svg viewBox="0 0 24 24"><path d="M20 15.31L23.31 12 20 8.69V4h-4.69L12 .69 8.69 4H4v4.69L.69 12 4 15.31V20h4.69L12 23.31 15.31 20H20v-4.69z"/></svg></span>':'';
@@ -1054,40 +1112,58 @@ function togglePriority(cardEl){
 }
 
 async function update(){
+  var gen=_locationGeneration;
   document.getElementById("updated").textContent="Updating...";
   const ids=getAllStopIds();
   let completed=0;
   const total=ids.length;
-  // Clear live ETAs from cache before refreshing (keep route info)
-  for(const k in routeCache){
-    if(routeCache[k].etas&&routeCache[k].etas.some(e=>e.live)){
-      routeCache[k].etas=routeCache[k].etas.filter(e=>!e.live);
-    }
-  }
-  // Fire all fetches, render as each completes
+  // Clear the per-cycle tracking set and per-route replacement flags
+  _routesUpdatedThisCycle.clear();
+  for(const k in routeCache){ delete routeCache[k]._liveReplacedThisCycle; }
+  // Fire all fetches, collect results, render once at the end
   const promises=ids.map(async id=>{
     try{
       const deps=await fetchStop(id);
-      if(deps.length){
-        mergeStopData(deps);
-        renderFromCache();
-      }
+      if(gen!==_locationGeneration) return; // stale — discard
+      if(deps.length) mergeStopData(deps);
     }catch(e){}
     completed++;
-    document.getElementById("updated").textContent=`Updating... ${completed}/${total}`;
+    if(gen===_locationGeneration) document.getElementById("updated").textContent=`Updating... ${completed}/${total}`;
   });
   await Promise.all(promises);
-  // Clean up expired ETAs
+  if(gen!==_locationGeneration) return; // location changed while fetching — abort
+  // Clean up per-route replacement flags
+  for(const k in routeCache){ delete routeCache[k]._liveReplacedThisCycle; }
+  // Missed-cycle tracking for graceful degradation from live to scheduled ETAs
+  for(const k in routeCache){
+    const entry=routeCache[k];
+    if(_routesUpdatedThisCycle.has(k)){
+      entry.missedCycles=0;
+    } else if(entry.etas&&entry.etas.some(e=>e.live)){
+      entry.missedCycles=(entry.missedCycles||0)+1;
+      // After 3 missed cycles (~90s at 30s intervals), degrade to schedule
+      if(entry.missedCycles>=3&&entry.scheduleTimes&&entry.scheduleTimes.length){
+        const now2=Date.now();
+        const upcoming=entry.scheduleTimes.filter(t=>t>now2);
+        if(upcoming.length){
+          entry.etas=upcoming.slice(0,3).map(t=>({ms:t,live:false}));
+        }
+        entry.missedCycles=0;
+      }
+    }
+  }
+  renderFromCache();
+  // Clean up expired ETAs (but never delete routes — append-only)
   const now=Date.now();
   for(const k in routeCache){
     const g=routeCache[k];
     if(g.etas&&g.etas.length){
       g.etas=g.etas.filter(e=>e.ms>now-60000);
-      if(!g.etas.length) delete routeCache[k].nextDayTimes;
+      // Don't delete the route or its metadata — renderFromCache() will fall back to scheduleTimes
     }
   }
   renderFromCache();
-  document.getElementById("updated").textContent=`v5.1 · Updated ${new Date().toLocaleTimeString("en-US",{hour:"2-digit",minute:"2-digit",second:"2-digit"})}`;
+  document.getElementById("updated").textContent=`v5.4-${typeof VERSION!=='undefined'?VERSION:'?'} · Updated ${new Date().toLocaleTimeString("en-US",{hour:"2-digit",minute:"2-digit",second:"2-digit"})}`;
   document.getElementById("dot").classList.remove("error");
 }
 
@@ -1127,9 +1203,9 @@ function tick(){document.getElementById("clock").textContent=new Date().toLocale
 function showManifest(){
   if(!CFG.manifest||!CFG.manifest.length) return;
   for(const m of CFG.manifest){
-    const dirKey=m.headsign.split(/[\s-]/)[0]||m.headsign;
-    const k=m.route+"|"+m.mode+"|"+dirKey;
-    if(!routeCache[k]) routeCache[k]={...m,etas:[],dirKey:dirKey};
+    const di=resolveDir(m.route,m.mode,m.headsign);
+    const k=m.route+"|"+m.mode+"|"+di;
+    if(!routeCache[k]) routeCache[k]={...m,etas:[],missedCycles:0};
   }
   const sorted=Object.values(routeCache).sort(prioritySort);
   cache.length=0;cache.push(...sorted);
@@ -1141,6 +1217,7 @@ function showManifest(){
 
 // === PHASE 2: Schedule-based ETAs ===
 async function loadScheduleETAs(){
+  var gen=_locationGeneration;
   const now=Date.now();
   // Try cache first
   const cached=loadScheduleCache(currentStation);
@@ -1149,13 +1226,13 @@ async function loadScheduleETAs(){
     document.getElementById("updated").textContent="Schedule loaded (cached) — fetching live data...";
     // Refresh cache in background if older than 1 hour
     const raw=localStorage.getItem('nextup_schedule_cache');
-    if(raw){try{const all=JSON.parse(raw);const entry=all[currentStation];if(entry&&now-entry.timestamp>3600000){fetchAndCacheSchedule(now);}}catch(e){}}
+    if(raw){try{const all=JSON.parse(raw);const entry=all[currentStation];if(entry&&now-entry.timestamp>3600000){fetchAndCacheSchedule(now,gen);}}catch(e){}}
     return;
   }
-  await fetchAndCacheSchedule(now);
+  await fetchAndCacheSchedule(now,gen);
 }
 
-async function fetchAndCacheSchedule(now){
+async function fetchAndCacheSchedule(now,gen){
   const allStopIds=getAllStopIds();
   const allItems=[];
   const results=await Promise.allSettled(allStopIds.map(async id=>{
@@ -1172,11 +1249,11 @@ async function fetchAndCacheSchedule(now){
         if(!allTimes.length)continue;
         const route=parseRoute(rt.shortName||"?",rt.type,rt.agencyId);
         const headsign=dir.tripHeadsign||rt.longName||"";
-        const dirKey=headsign.split(/[\s-]/)[0]||headsign;
+        const di=resolveDir(route,cls.mode,headsign);
         items.push({
           route:route,
           headsign:headsign,
-          dirKey:dirKey,
+          dirIndex:di,
           color:rt.color?`#${rt.color}`:"#666",
           textColor:rt.textColor?`#${rt.textColor}`:"#fff",
           ...cls,
@@ -1186,6 +1263,7 @@ async function fetchAndCacheSchedule(now){
     }
     return items;
   }));
+  if(gen!==_locationGeneration) return; // location changed — discard
   for(const r of results){
     if(r.status!=="fulfilled")continue;
     allItems.push(...r.value);
@@ -1199,18 +1277,31 @@ async function fetchAndCacheSchedule(now){
 function applyScheduleData(items,now){
   for(const item of items){
     const upcomingTimes=(item.scheduleTimes||[]).filter(t=>t>now);
-    if(!upcomingTimes.length)continue;
-    const etas=upcomingTimes.slice(0,3).map(t=>({ms:t,live:false}));
-    const k=item.route+"|"+item.mode+"|"+item.dirKey;
+    // Resolve direction index (handles both cached items with dirKey and new items with dirIndex)
+    const di=(item.dirIndex!==undefined)?item.dirIndex:resolveDir(item.route,item.mode,item.headsign);
+    const k=item.route+"|"+item.mode+"|"+di;
     if(routeCache[k]){
-      if(!routeCache[k].etas.length){
-        routeCache[k].etas=etas;
+      // Always store ALL scheduleTimes (including past) so we know the route exists
+      routeCache[k].allScheduleTimes=item.scheduleTimes||[];
+      if(upcomingTimes.length){
+        // Store upcoming as persistent fallback layer
+        routeCache[k].scheduleTimes=upcomingTimes;
+        if(!routeCache[k].etas.length){
+          const etas=upcomingTimes.slice(0,3).map(t=>({ms:t,live:false}));
+          routeCache[k].etas=etas;
+        }
       }
       if(item.headsign.length>(routeCache[k].headsign||"").length){
         routeCache[k].headsign=item.headsign;
       }
     } else {
-      routeCache[k]={...item,etas:etas};
+      if(upcomingTimes.length){
+        const etas=upcomingTimes.slice(0,3).map(t=>({ms:t,live:false}));
+        routeCache[k]={...item,etas:etas,scheduleTimes:upcomingTimes,allScheduleTimes:item.scheduleTimes||[],missedCycles:0};
+      } else {
+        // Service ended — create entry with empty ETAs but mark it so next-day fetch can find it
+        routeCache[k]={...item,etas:[],scheduleTimes:[],allScheduleTimes:item.scheduleTimes||[],missedCycles:0};
+      }
     }
   }
   const sorted=Object.values(routeCache).sort(prioritySort);
@@ -1227,6 +1318,7 @@ let refreshInterval;
   showManifest();
   await loadScheduleETAs();
   await update();
+  applyNextDayFromSchedule();
   refreshInterval=setInterval(animatedUpdate,30000);
 })();
 let rt;window.addEventListener("resize",()=>{clearTimeout(rt);rt=setTimeout(update,200);});
