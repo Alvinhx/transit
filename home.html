@@ -49,6 +49,7 @@ header{background:var(--surface);padding:14px 16px 10px;display:flex;align-items
 .clock{font-family:var(--font-mono);font-size:22px;color:var(--dim)}
 .dot{width:10px;height:10px;border-radius:50%;background:var(--live);animation:pulse 2s ease-in-out infinite}
 @keyframes pulse{0%,100%{opacity:1}50%{opacity:0.3}}
+@keyframes pulse-bg{0%,100%{opacity:1}50%{opacity:0.35}}
 .results{flex:1;display:grid;grid-template-columns:repeat(auto-fill,minmax(min(600px,100%),1fr));align-content:start;gap:12px;padding:16px;overflow-y:auto;overflow-x:hidden}
 .card{height:112px;background:var(--card-bg);border-radius:24px;display:flex;align-items:center;padding:16px 16px 16px 20px;gap:16px;transition:transform 0.4s ease,opacity 0.3s ease;cursor:pointer;position:relative;-webkit-user-select:none;user-select:none;-webkit-touch-callout:none;overflow:visible}
 .card.pinned{border-radius:48px}
@@ -65,7 +66,9 @@ header{background:var(--surface);padding:14px 16px 10px;display:flex;align-items
 .dest{flex:1;display:flex;align-items:center;font-size:22px;font-weight:600;overflow:hidden;line-height:1.2;min-width:0;word-wrap:break-word;white-space:normal;color:var(--text)}
 .etas{display:flex;gap:6px;flex-shrink:0;align-items:center}
 .pill{width:80px;height:80px;border-radius:40px;background:rgba(255,255,255,0.06);display:flex;flex-direction:column;align-items:center;justify-content:center;position:relative;overflow:visible}
-.pill.now{width:auto;min-width:100px;height:80px;border-radius:40px;background:#0DF266;flex-direction:row;gap:3px;padding:0 18px;animation:pulse 2s ease-in-out infinite}
+.pill.now{width:auto;min-width:100px;height:80px;border-radius:40px;background:transparent;flex-direction:row;gap:3px;padding:0 18px;position:relative;overflow:visible}
+.pill.now::before{content:'';position:absolute;top:0;left:0;right:0;bottom:0;background:#0DF266;border-radius:40px;animation:pulse-bg 2s ease-in-out infinite}
+.pill.now>*{position:relative;z-index:1}
 .pill-num{font-family:var(--font-sans);font-size:40px;font-weight:700;line-height:1;color:var(--text)}
 .pill.sched .pill-num{color:var(--dim)}
 .pill.now .pill-num{font-size:32px;font-weight:900;color:#000}
@@ -85,14 +88,15 @@ body.light{--bg:#ffffff;--surface:#f5f7fa;--card-bg:#ffffff;--border:#e2e8f0;--t
 body.light .card{background:var(--card-bg)}
 body.light .dest{color:var(--text)}
 body.light .pill{background:rgba(255,255,255,0.6)}
-body.light .pill.now{background:#0DF266}
+body.light .pill.now{background:transparent}
+body.light .pill.now::before{background:#0DF266}
 body.light .pill.now .pill-num{color:#000}
 body.light .pill.live-near{background:rgba(255,255,255,0.6)}
 body.light .pill.live-far{background:rgba(255,255,255,0.6)}
 body.light .pill.sched{background:rgba(255,255,255,0.6)}
 body.light .pill-num{color:var(--text)}
 body.light .pill.sched .pill-num{color:var(--dim)}
-body.light .pill.now .pill-num{color:#16a34a}
+body.light .pill.now .pill-num{color:#000}
 body.light .pill-live{color:#16a34a}
 body.light .clock{color:var(--dim)}
 body.light .loc-menu{background:#fff;border-color:#e2e8f0;box-shadow:0 8px 24px rgba(0,0,0,0.12)}
@@ -107,7 +111,7 @@ body.light .card-pin svg{fill:#E99300}
   .card{height:80px;padding:10px 10px 10px 12px;gap:10px;border-radius:20px}
   .card.pinned{border-radius:40px}
   .badge{width:52px;height:52px;border-radius:26px}
-  .badge.square{border-radius:14px}
+  .badge.square{border-radius:18px}
   .badge-num{font-size:24px}
   .badge-num.sm{font-size:16px}
   .badge-sub{font-size:7px}
@@ -118,6 +122,7 @@ body.light .card-pin svg{fill:#E99300}
   .etas{gap:4px}
   .pill{width:52px;height:52px;border-radius:26px}
   .pill.now{min-width:68px;height:52px;border-radius:26px;padding:0 10px}
+  .pill.now::before{border-radius:26px}
   .pill-num{font-size:26px}
   .pill.now .pill-num{font-size:20px}
   .pill-min{font-size:5px;margin-top:-2px}
@@ -129,7 +134,7 @@ body.light .card-pin svg{fill:#E99300}
   .card{height:72px;padding:8px 8px 8px 10px;gap:8px;border-radius:16px}
   .card.pinned{border-radius:36px}
   .badge{width:46px;height:46px;border-radius:23px}
-  .badge.square{border-radius:12px}
+  .badge.square{border-radius:18px}
   .badge-num{font-size:20px}
   .badge-num.sm{font-size:14px}
   .badge-icon{font-size:20px}
@@ -137,6 +142,7 @@ body.light .card-pin svg{fill:#E99300}
   .dest{font-size:13px}
   .pill{width:42px;height:42px;border-radius:21px}
   .pill.now{min-width:56px;height:42px;border-radius:21px;padding:0 8px}
+  .pill.now::before{border-radius:21px}
   .pill-num{font-size:20px}
   .pill.now .pill-num{font-size:16px}
   .pill-min{font-size:5px}
@@ -206,8 +212,8 @@ body.light .card-pin svg{fill:#E99300}
   </header>
   <div class="results" id="results"><div class="loading">Loading…</div></div>
   <footer>
-    <button class="theme-toggle" onclick="toggleTheme()"><span class="material-icons" style="font-size:14px">brightness_6</span><span id="themeLabel">Light</span></button>
-    <span id="updated">v5.4-2.0</span>
+    <button class="theme-toggle" onclick="toggleTheme()"><span class="material-icons" id="themeIcon" style="font-size:14px">brightness_auto</span><span id="themeLabel">Auto</span></button>
+    <span id="updated">v5.5-2.0</span>
   </footer>
 </div>
 
@@ -263,7 +269,7 @@ const STATIONS={
   caphill:{
     name:"Capitol Hill",
     stops:{rail:["40_99610","40_99603"],bus:["1_11180","1_29270","1_29262","1_11060"],streetcar:["1_11175"]},
-    priority:["1","2","8","49","11","12","First Hill"],
+    priority:["8","1","2","First Hill"],
     manifest:[
       {route:"1",headsign:"Federal Way Downtown",color:"#28813F",textColor:"#FFFFFF",mode:"rail",tag:"Light Rail",badge:"round"},
       {route:"1",headsign:"Lynnwood City Center",color:"#28813F",textColor:"#FFFFFF",mode:"rail",tag:"Light Rail",badge:"round"},
@@ -293,7 +299,7 @@ const STATIONS={
   lynnwood:{
     name:"Lynnwood City Center",
     stops:{rail:["40_N23-T1","40_N23-T2"],bus:["29_2035","29_2107","29_2108","29_2109","29_2110","29_2115","29_2116","29_2117","29_2119","29_2167","29_2168","29_3311"],express:["29_2113","29_2118","29_2422","29_2543","29_2114","29_3227"]},
-    priority:["1","2","Swift Orange","Swift Blue","120"],
+    priority:["1","2","Swift Orange","112"],
     manifest:[
       {route:"1",headsign:"Federal Way Downtown",color:"#28813F",textColor:"#FFFFFF",mode:"rail",tag:"Light Rail",badge:"round"},
       {route:"1",headsign:"Lynnwood City Center",color:"#28813F",textColor:"#FFFFFF",mode:"rail",tag:"Light Rail",badge:"round"},
@@ -895,8 +901,11 @@ function mergeStopData(departures){
           routeCache[k].etas.push({ms:d.ms,live:d.live});
         }
       }
-      // Prefer shorter headsign (live destination sign is cleaner than schedule with stop context)
-      if(d.headsign&&d.headsign.length<routeCache[k].headsign.length) routeCache[k].headsign=d.headsign;
+      // Lock headsign: first live feed sets the short destination name, then it never changes again
+      if(d.headsign&&!routeCache[k]._headsignLocked){
+        routeCache[k].headsign=d.headsign;
+        if(d.live) routeCache[k]._headsignLocked=true;
+      }
       // Dedupe by exact ms+live, sort, cap at 3
       const seen=new Set();
       routeCache[k].etas=routeCache[k].etas.filter(e=>{const key=e.ms+"|"+e.live;if(seen.has(key))return false;seen.add(key);return true;});
@@ -1163,7 +1172,7 @@ async function update(){
     }
   }
   renderFromCache();
-  document.getElementById("updated").textContent=`v5.4-${typeof VERSION!=='undefined'?VERSION:'?'} · Updated ${new Date().toLocaleTimeString("en-US",{hour:"2-digit",minute:"2-digit",second:"2-digit"})}`;
+  document.getElementById("updated").textContent=`v5.5-${typeof VERSION!=='undefined'?VERSION:'?'} · Updated ${new Date().toLocaleTimeString("en-US",{hour:"2-digit",minute:"2-digit",second:"2-digit"})}`;
   document.getElementById("dot").classList.remove("error");
 }
 
@@ -1337,14 +1346,38 @@ if(!localStorage.getItem("nextup_onboarded")){
   document.getElementById("onboardModal").style.display="flex";
 }
 function toggleTheme(){
-  document.body.classList.toggle("light");
-  var isLight=document.body.classList.contains("light");
-  document.getElementById("themeLabel").textContent=isLight?"Dark":"Light";
-  localStorage.setItem("nextup_theme",isLight?"light":"dark");
-  // Re-render cards to update tint colors for light theme
+  // Cycle: Auto → Light → Dark → Auto
+  var saved=localStorage.getItem("nextup_theme");
+  var next;
+  if(!saved) next="light";        // Auto → Light
+  else if(saved==="light") next="dark";  // Light → Dark
+  else next=null;                 // Dark → Auto
+
+  if(next){
+    localStorage.setItem("nextup_theme",next);
+    var isLight=next==="light";
+    if(isLight) document.body.classList.add("light");
+    else document.body.classList.remove("light");
+  } else {
+    localStorage.removeItem("nextup_theme");
+    // Follow system
+    var sysLight=window.matchMedia&&window.matchMedia("(prefers-color-scheme:light)").matches;
+    if(sysLight) document.body.classList.add("light");
+    else document.body.classList.remove("light");
+  }
+  updateThemeButton();
   var el=document.getElementById("results");
   if(cache.length) el.innerHTML=cache.map(renderCard).join("");
   attachLongPress();
+}
+function updateThemeButton(){
+  var saved=localStorage.getItem("nextup_theme");
+  var icon,label;
+  if(!saved){icon="brightness_auto";label="Auto";}
+  else if(saved==="light"){icon="light_mode";label="Light";}
+  else{icon="dark_mode";label="Dark";}
+  document.getElementById("themeIcon").textContent=icon;
+  document.getElementById("themeLabel").textContent=label;
 }
 // Auto-detect system theme on load
 (function(){
@@ -1353,14 +1386,14 @@ function toggleTheme(){
   if(saved){isLight=saved==="light";}
   else{isLight=window.matchMedia&&window.matchMedia("(prefers-color-scheme:light)").matches;}
   if(isLight) document.body.classList.add("light");
-  document.getElementById("themeLabel").textContent=isLight?"Dark":"Light";
+  updateThemeButton();
   // Listen for system theme changes
   if(window.matchMedia){
     window.matchMedia("(prefers-color-scheme:light)").addEventListener("change",function(e){
       if(localStorage.getItem("nextup_theme")) return; // user override, don't auto-switch
       if(e.matches) document.body.classList.add("light");
       else document.body.classList.remove("light");
-      document.getElementById("themeLabel").textContent=document.body.classList.contains("light")?"Dark":"Light";
+      updateThemeButton();
       var el=document.getElementById("results");
       if(cache.length) el.innerHTML=cache.map(renderCard).join("");
       attachLongPress();
