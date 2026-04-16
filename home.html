@@ -213,7 +213,7 @@ body.light .card-pin svg{fill:#E99300}
   <div class="results" id="results"><div class="loading">Loading…</div></div>
   <footer>
     <button class="theme-toggle" onclick="toggleTheme()"><span class="material-icons" id="themeIcon" style="font-size:14px">brightness_auto</span><span id="themeLabel">Auto</span></button>
-    <span id="updated">v5.5-2.0</span>
+    <span id="updated">v5.6-2.0</span>
   </footer>
 </div>
 
@@ -263,7 +263,7 @@ body.light .card-pin svg{fill:#E99300}
 <script src="transit-logic.js"></script>
 <script>
 const OBA="https://api.pugetsound.onebusaway.org/api/where";
-const KEY="TEST";
+const KEY="55c7b445-e38b-4da6-ba94-0006a4b3a4bf";
 // ===== MULTI-STATION CONFIG =====
 const STATIONS={
   caphill:{
@@ -798,7 +798,7 @@ function switchLocation(type,id){
     await update();
     applyNextDayFromSchedule();
     if(refreshInterval) clearInterval(refreshInterval);
-    refreshInterval=setInterval(animatedUpdate,30000);
+    refreshInterval=setInterval(animatedUpdate,15000);
   })();
 }
 
@@ -1150,8 +1150,8 @@ async function update(){
       entry.missedCycles=0;
     } else if(entry.etas&&entry.etas.some(e=>e.live)){
       entry.missedCycles=(entry.missedCycles||0)+1;
-      // After 3 missed cycles (~90s at 30s intervals), degrade to schedule
-      if(entry.missedCycles>=3&&entry.scheduleTimes&&entry.scheduleTimes.length){
+      // After 6 missed cycles (~90s at 15s intervals), degrade to schedule
+      if(entry.missedCycles>=6&&entry.scheduleTimes&&entry.scheduleTimes.length){
         const now2=Date.now();
         const upcoming=entry.scheduleTimes.filter(t=>t>now2);
         if(upcoming.length){
@@ -1172,7 +1172,7 @@ async function update(){
     }
   }
   renderFromCache();
-  document.getElementById("updated").textContent=`v5.5-${typeof VERSION!=='undefined'?VERSION:'?'} · Updated ${new Date().toLocaleTimeString("en-US",{hour:"2-digit",minute:"2-digit",second:"2-digit"})}`;
+  document.getElementById("updated").textContent=`v5.6-${typeof VERSION!=='undefined'?VERSION:'?'} · Updated ${new Date().toLocaleTimeString("en-US",{hour:"2-digit",minute:"2-digit",second:"2-digit"})}`;
   document.getElementById("dot").classList.remove("error");
 }
 
@@ -1328,7 +1328,7 @@ let refreshInterval;
   await loadScheduleETAs();
   await update();
   applyNextDayFromSchedule();
-  refreshInterval=setInterval(animatedUpdate,30000);
+  refreshInterval=setInterval(animatedUpdate,15000);
 })();
 let rt;window.addEventListener("resize",()=>{clearTimeout(rt);rt=setTimeout(update,200);});
 document.addEventListener("click",e=>{if(!e.target.closest(".station"))document.getElementById("locMenu").classList.remove("open");});

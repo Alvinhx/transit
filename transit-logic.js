@@ -14,7 +14,7 @@
 })(typeof globalThis !== 'undefined' ? globalThis : typeof self !== 'undefined' ? self : this, function () {
   'use strict';
 
-  var VERSION = '2.0';
+  var VERSION = '2.1';
 
   // ===== Storage Keys =====
   var STORAGE_KEYS = {
