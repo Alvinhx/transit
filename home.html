@@ -74,7 +74,18 @@ header{background:var(--surface);padding:14px 16px 10px;display:flex;align-items
 .pill.now .pill-num{font-size:32px;font-weight:900;color:#000}
 .pill-min{font-size:8px;font-weight:500;color:var(--dim);margin-top:-4px}
 .pill.now .pill-min{display:none}
-.pill-live{position:absolute;top:12px;right:12px;font-size:12px;color:var(--live);font-family:'Material Symbols Rounded'}
+.pill-live{position:absolute;top:8px;right:8px;width:14px;height:14px}
+.pill-live svg{position:absolute;top:0;left:0;width:14px;height:14px;opacity:0}
+.pill-live .sig-0{animation:sig0 4s steps(1,end) infinite}
+.pill-live .sig-1{animation:sig1 4s steps(1,end) infinite}
+.pill-live .sig-2{animation:sig2 4s steps(1,end) infinite}
+.pill-live .dark-svg{display:block}
+.pill-live .light-svg{display:none}
+body.light .pill-live .dark-svg{display:none}
+body.light .pill-live .light-svg{display:block}
+@keyframes sig0{0%{opacity:1}12%,99%{opacity:0}100%{opacity:1}}
+@keyframes sig1{0%,11%{opacity:0}12%,24%{opacity:1}25%,99%{opacity:0}}
+@keyframes sig2{0%,24%{opacity:0}25%,99%{opacity:1}}
 .pill.live-near{background:rgba(255,255,255,0.06)}
 .pill.live-far{background:rgba(255,255,255,0.06)}
 .pill.sched{background:rgba(255,255,255,0.06)}
@@ -97,7 +108,7 @@ body.light .pill.sched{background:rgba(255,255,255,0.6)}
 body.light .pill-num{color:var(--text)}
 body.light .pill.sched .pill-num{color:var(--dim)}
 body.light .pill.now .pill-num{color:#000}
-body.light .pill-live{color:#16a34a}
+body.light .pill-live .dot{fill:#16a34a}
 body.light .clock{color:var(--dim)}
 body.light .loc-menu{background:#fff;border-color:#e2e8f0;box-shadow:0 8px 24px rgba(0,0,0,0.12)}
 body.light .loc-item:hover{background:#f1f5f9}
@@ -126,7 +137,8 @@ body.light .card-pin svg{fill:#E99300}
   .pill-num{font-size:26px}
   .pill.now .pill-num{font-size:20px}
   .pill-min{font-size:5px;margin-top:-2px}
-  .pill-live{top:8px;right:8px;font-size:9px}
+  .pill-live{top:6px;right:6px;width:12px;height:12px}
+  .pill-live svg{width:12px;height:12px}
   .next-day-times{font-size:14px;gap:6px}
   footer{padding:4px 14px;font-size:9px}
 }
@@ -146,7 +158,8 @@ body.light .card-pin svg{fill:#E99300}
   .pill-num{font-size:20px}
   .pill.now .pill-num{font-size:16px}
   .pill-min{font-size:5px}
-  .pill-live{top:6px;right:6px;font-size:8px}
+  .pill-live{top:5px;right:5px;width:10px;height:10px}
+  .pill-live svg{width:10px;height:10px}
   .next-day-times{font-size:12px;gap:4px}
 }
 /* Creation Modal */
@@ -213,7 +226,7 @@ body.light .card-pin svg{fill:#E99300}
   <div class="results" id="results"><div class="loading">Loading…</div></div>
   <footer>
     <button class="theme-toggle" onclick="toggleTheme()"><span class="material-icons" id="themeIcon" style="font-size:14px">brightness_auto</span><span id="themeLabel">Auto</span></button>
-    <span id="updated">v5.6-2.0</span>
+    <span id="updated">v5.7</span>
   </footer>
 </div>
 
@@ -271,10 +284,10 @@ const STATIONS={
     stops:{rail:["40_99610","40_99603"],bus:["1_11180","1_29270","1_29262","1_11060"],streetcar:["1_11175"]},
     priority:["8","1","2","First Hill"],
     manifest:[
-      {route:"1",headsign:"Federal Way Downtown",color:"#28813F",textColor:"#FFFFFF",mode:"rail",tag:"Light Rail",badge:"round"},
-      {route:"1",headsign:"Lynnwood City Center",color:"#28813F",textColor:"#FFFFFF",mode:"rail",tag:"Light Rail",badge:"round"},
-      {route:"2",headsign:"Downtown Redmond",color:"#007CAD",textColor:"#FFFFFF",mode:"rail",tag:"Light Rail",badge:"round"},
-      {route:"2",headsign:"Lynnwood City Center",color:"#007CAD",textColor:"#FFFFFF",mode:"rail",tag:"Light Rail",badge:"round"},
+      {route:"1",headsign:"Federal Way Downtown",color:"#3DAE2B",textColor:"#FFFFFF",mode:"rail",tag:"Light Rail",badge:"round"},
+      {route:"1",headsign:"Lynnwood City Center",color:"#3DAE2B",textColor:"#FFFFFF",mode:"rail",tag:"Light Rail",badge:"round"},
+      {route:"2",headsign:"Downtown Redmond",color:"#00A0DF",textColor:"#FFFFFF",mode:"rail",tag:"Light Rail",badge:"round"},
+      {route:"2",headsign:"Lynnwood City Center",color:"#00A0DF",textColor:"#FFFFFF",mode:"rail",tag:"Light Rail",badge:"round"},
       {route:"8",headsign:"Mount Baker Transit Center",color:"#FDB71A",textColor:"#000000",mode:"bus",tag:"KC Bus",badge:"square"},
       {route:"8",headsign:"Seattle Center",color:"#FDB71A",textColor:"#000000",mode:"bus",tag:"KC Bus",badge:"square"},
       {route:"11",headsign:"Madison Park",color:"#FDB71A",textColor:"#000000",mode:"bus",tag:"KC Bus",badge:"square"},
@@ -301,10 +314,10 @@ const STATIONS={
     stops:{rail:["40_N23-T1","40_N23-T2"],bus:["29_2035","29_2107","29_2108","29_2109","29_2110","29_2115","29_2116","29_2117","29_2119","29_2167","29_2168","29_3311"],express:["29_2113","29_2118","29_2422","29_2543","29_2114","29_3227"]},
     priority:["1","2","Swift Orange","112"],
     manifest:[
-      {route:"1",headsign:"Federal Way Downtown",color:"#28813F",textColor:"#FFFFFF",mode:"rail",tag:"Light Rail",badge:"round"},
-      {route:"1",headsign:"Lynnwood City Center",color:"#28813F",textColor:"#FFFFFF",mode:"rail",tag:"Light Rail",badge:"round"},
-      {route:"2",headsign:"Downtown Redmond",color:"#007CAD",textColor:"#FFFFFF",mode:"rail",tag:"Light Rail",badge:"round"},
-      {route:"2",headsign:"Lynnwood City Center",color:"#007CAD",textColor:"#FFFFFF",mode:"rail",tag:"Light Rail",badge:"round"},
+      {route:"1",headsign:"Federal Way Downtown",color:"#3DAE2B",textColor:"#FFFFFF",mode:"rail",tag:"Light Rail",badge:"round"},
+      {route:"1",headsign:"Lynnwood City Center",color:"#3DAE2B",textColor:"#FFFFFF",mode:"rail",tag:"Light Rail",badge:"round"},
+      {route:"2",headsign:"Downtown Redmond",color:"#00A0DF",textColor:"#FFFFFF",mode:"rail",tag:"Light Rail",badge:"round"},
+      {route:"2",headsign:"Lynnwood City Center",color:"#00A0DF",textColor:"#FFFFFF",mode:"rail",tag:"Light Rail",badge:"round"},
       {route:"535",headsign:"Bellevue",color:"#2B376E",textColor:"#FFFFFF",mode:"express",tag:"ST Express",badge:"square"},
       {route:"Swift Orange",headsign:"McCollum Park",color:"#F24C21",textColor:"#FFFFFF",mode:"swift",tag:"Swift Orange",badge:"square",isSwift:true},
       {route:"102",headsign:"Lynnwood City Center Station",color:"#0070C0",textColor:"#FFFFFF",mode:"bus",tag:"Community Transit",badge:"square"},
@@ -975,7 +988,7 @@ function renderPill(eta,idx){
   if(mins<=0&&!eta.live)return`<div class="pill sched"><span class="pill-num">0</span><span class="pill-min">min</span></div>`;
   // Urgency class based on position
   const urgClass=eta.live?(idx===0?"live-near":"live-far"):"sched";
-  const liveIcon=eta.live?`<span class="material-symbols-rounded pill-live">rss_feed</span>`:"";
+  const liveIcon=eta.live?`<span class="pill-live"><svg class="sig-0 dark-svg" viewBox="0 0 24 24" fill="none" xmlns="http://www.w3.org/2000/svg"><mask id="dm03" style="mask-type:alpha" maskUnits="userSpaceOnUse" x="3" y="4" width="17" height="17"><path d="M3.5875 20.4125C3.19583 20.0208 3 19.55 3 19C3 18.45 3.19583 17.9792 3.5875 17.5875C3.97917 17.1958 4.45 17 5 17C5.55 17 6.02083 17.1958 6.4125 17.5875C6.80417 17.9792 7 18.45 7 19C7 19.55 6.80417 20.0208 6.4125 20.4125C6.02083 20.8042 5.55 21 5 21C4.45 21 3.97917 20.8042 3.5875 20.4125ZM17 21C17 19.05 16.6333 17.2292 15.9 15.5375C15.1667 13.8458 14.1667 12.3667 12.9 11.1C11.6333 9.83333 10.1542 8.83333 8.4625 8.1C6.77083 7.36667 4.95 7 3 7V4C5.36667 4 7.575 4.44167 9.625 5.325C11.675 6.20833 13.475 7.425 15.025 8.975C16.575 10.525 17.7917 12.325 18.675 14.375C19.5583 16.425 20 18.6333 20 21H17ZM11 21C11 19.8833 10.7917 18.8458 10.375 17.8875C9.95833 16.9292 9.38333 16.0833 8.65 15.35C7.91667 14.6167 7.07083 14.0417 6.1125 13.625C5.15417 13.2083 4.11667 13 3 13V10C4.53333 10 5.9625 10.2875 7.2875 10.8625C8.6125 11.4375 9.775 12.225 10.775 13.225C11.775 14.225 12.5625 15.3875 13.1375 16.7125C13.7125 18.0375 14 19.4667 14 21H11Z" fill="#1C1B1F"/></mask><g mask="url(#dm03)"><path d="M3.5875 20.4125C3.19583 20.0208 3 19.55 3 19C3 18.45 3.19583 17.9792 3.5875 17.5875C3.97917 17.1958 4.45 17 5 17C5.55 17 6.02083 17.1958 6.4125 17.5875C6.80417 17.9792 7 18.45 7 19C7 19.55 6.80417 20.0208 6.4125 20.4125C6.02083 20.8042 5.55 21 5 21C4.45 21 3.97917 20.8042 3.5875 20.4125ZM17 21C17 19.05 16.6333 17.2292 15.9 15.5375C15.1667 13.8458 14.1667 12.3667 12.9 11.1C11.6333 9.83333 10.1542 8.83333 8.4625 8.1C6.77083 7.36667 4.95 7 3 7V4C5.36667 4 7.575 4.44167 9.625 5.325C11.675 6.20833 13.475 7.425 15.025 8.975C16.575 10.525 17.7917 12.325 18.675 14.375C19.5583 16.425 20 18.6333 20 21H17ZM11 21C11 19.8833 10.7917 18.8458 10.375 17.8875C9.95833 16.9292 9.38333 16.0833 8.65 15.35C7.91667 14.6167 7.07083 14.0417 6.1125 13.625C5.15417 13.2083 4.11667 13 3 13V10C4.53333 10 5.9625 10.2875 7.2875 10.8625C8.6125 11.4375 9.775 12.225 10.775 13.225C11.775 14.225 12.5625 15.3875 13.1375 16.7125C13.7125 18.0375 14 19.4667 14 21H11Z" fill="#8B949E"/><circle cx="5" cy="19" r="2" fill="#22C55E"/></g></svg><svg class="sig-1 dark-svg" viewBox="0 0 24 24" fill="none" xmlns="http://www.w3.org/2000/svg"><mask id="dm02" style="mask-type:alpha" maskUnits="userSpaceOnUse" x="3" y="4" width="17" height="17"><path d="M3.5875 20.4125C3.19583 20.0208 3 19.55 3 19C3 18.45 3.19583 17.9792 3.5875 17.5875C3.97917 17.1958 4.45 17 5 17C5.55 17 6.02083 17.1958 6.4125 17.5875C6.80417 17.9792 7 18.45 7 19C7 19.55 6.80417 20.0208 6.4125 20.4125C6.02083 20.8042 5.55 21 5 21C4.45 21 3.97917 20.8042 3.5875 20.4125ZM17 21C17 19.05 16.6333 17.2292 15.9 15.5375C15.1667 13.8458 14.1667 12.3667 12.9 11.1C11.6333 9.83333 10.1542 8.83333 8.4625 8.1C6.77083 7.36667 4.95 7 3 7V4C5.36667 4 7.575 4.44167 9.625 5.325C11.675 6.20833 13.475 7.425 15.025 8.975C16.575 10.525 17.7917 12.325 18.675 14.375C19.5583 16.425 20 18.6333 20 21H17ZM11 21C11 19.8833 10.7917 18.8458 10.375 17.8875C9.95833 16.9292 9.38333 16.0833 8.65 15.35C7.91667 14.6167 7.07083 14.0417 6.1125 13.625C5.15417 13.2083 4.11667 13 3 13V10C4.53333 10 5.9625 10.2875 7.2875 10.8625C8.6125 11.4375 9.775 12.225 10.775 13.225C11.775 14.225 12.5625 15.3875 13.1375 16.7125C13.7125 18.0375 14 19.4667 14 21H11Z" fill="#1C1B1F"/></mask><g mask="url(#dm02)"><path d="M3.5875 20.4125C3.19583 20.0208 3 19.55 3 19C3 18.45 3.19583 17.9792 3.5875 17.5875C3.97917 17.1958 4.45 17 5 17C5.55 17 6.02083 17.1958 6.4125 17.5875C6.80417 17.9792 7 18.45 7 19C7 19.55 6.80417 20.0208 6.4125 20.4125C6.02083 20.8042 5.55 21 5 21C4.45 21 3.97917 20.8042 3.5875 20.4125ZM17 21C17 19.05 16.6333 17.2292 15.9 15.5375C15.1667 13.8458 14.1667 12.3667 12.9 11.1C11.6333 9.83333 10.1542 8.83333 8.4625 8.1C6.77083 7.36667 4.95 7 3 7V4C5.36667 4 7.575 4.44167 9.625 5.325C11.675 6.20833 13.475 7.425 15.025 8.975C16.575 10.525 17.7917 12.325 18.675 14.375C19.5583 16.425 20 18.6333 20 21H17ZM11 21C11 19.8833 10.7917 18.8458 10.375 17.8875C9.95833 16.9292 9.38333 16.0833 8.65 15.35C7.91667 14.6167 7.07083 14.0417 6.1125 13.625C5.15417 13.2083 4.11667 13 3 13V10C4.53333 10 5.9625 10.2875 7.2875 10.8625C8.6125 11.4375 9.775 12.225 10.775 13.225C11.775 14.225 12.5625 15.3875 13.1375 16.7125C13.7125 18.0375 14 19.4667 14 21H11Z" fill="#8B949E"/><circle cx="3" cy="21" r="11" fill="#22C55E"/></g></svg><svg class="sig-2 dark-svg" viewBox="0 0 24 24" fill="none" xmlns="http://www.w3.org/2000/svg"><mask id="dm01" style="mask-type:alpha" maskUnits="userSpaceOnUse" x="3" y="4" width="17" height="17"><path d="M3.5875 20.4125C3.19583 20.0208 3 19.55 3 19C3 18.45 3.19583 17.9792 3.5875 17.5875C3.97917 17.1958 4.45 17 5 17C5.55 17 6.02083 17.1958 6.4125 17.5875C6.80417 17.9792 7 18.45 7 19C7 19.55 6.80417 20.0208 6.4125 20.4125C6.02083 20.8042 5.55 21 5 21C4.45 21 3.97917 20.8042 3.5875 20.4125ZM17 21C17 19.05 16.6333 17.2292 15.9 15.5375C15.1667 13.8458 14.1667 12.3667 12.9 11.1C11.6333 9.83333 10.1542 8.83333 8.4625 8.1C6.77083 7.36667 4.95 7 3 7V4C5.36667 4 7.575 4.44167 9.625 5.325C11.675 6.20833 13.475 7.425 15.025 8.975C16.575 10.525 17.7917 12.325 18.675 14.375C19.5583 16.425 20 18.6333 20 21H17ZM11 21C11 19.8833 10.7917 18.8458 10.375 17.8875C9.95833 16.9292 9.38333 16.0833 8.65 15.35C7.91667 14.6167 7.07083 14.0417 6.1125 13.625C5.15417 13.2083 4.11667 13 3 13V10C4.53333 10 5.9625 10.2875 7.2875 10.8625C8.6125 11.4375 9.775 12.225 10.775 13.225C11.775 14.225 12.5625 15.3875 13.1375 16.7125C13.7125 18.0375 14 19.4667 14 21H11Z" fill="#1C1B1F"/></mask><g mask="url(#dm01)"><path d="M3.5875 20.4125C3.19583 20.0208 3 19.55 3 19C3 18.45 3.19583 17.9792 3.5875 17.5875C3.97917 17.1958 4.45 17 5 17C5.55 17 6.02083 17.1958 6.4125 17.5875C6.80417 17.9792 7 18.45 7 19C7 19.55 6.80417 20.0208 6.4125 20.4125C6.02083 20.8042 5.55 21 5 21C4.45 21 3.97917 20.8042 3.5875 20.4125ZM17 21C17 19.05 16.6333 17.2292 15.9 15.5375C15.1667 13.8458 14.1667 12.3667 12.9 11.1C11.6333 9.83333 10.1542 8.83333 8.4625 8.1C6.77083 7.36667 4.95 7 3 7V4C5.36667 4 7.575 4.44167 9.625 5.325C11.675 6.20833 13.475 7.425 15.025 8.975C16.575 10.525 17.7917 12.325 18.675 14.375C19.5583 16.425 20 18.6333 20 21H17ZM11 21C11 19.8833 10.7917 18.8458 10.375 17.8875C9.95833 16.9292 9.38333 16.0833 8.65 15.35C7.91667 14.6167 7.07083 14.0417 6.1125 13.625C5.15417 13.2083 4.11667 13 3 13V10C4.53333 10 5.9625 10.2875 7.2875 10.8625C8.6125 11.4375 9.775 12.225 10.775 13.225C11.775 14.225 12.5625 15.3875 13.1375 16.7125C13.7125 18.0375 14 19.4667 14 21H11Z" fill="#22C55E"/><circle cx="3" cy="21" r="17" fill="#22C55E"/></g></svg><svg class="sig-0 light-svg" viewBox="0 0 24 24" fill="none" xmlns="http://www.w3.org/2000/svg"><mask id="lm03" style="mask-type:alpha" maskUnits="userSpaceOnUse" x="3" y="4" width="17" height="17"><path d="M3.5875 20.4125C3.19583 20.0208 3 19.55 3 19C3 18.45 3.19583 17.9792 3.5875 17.5875C3.97917 17.1958 4.45 17 5 17C5.55 17 6.02083 17.1958 6.4125 17.5875C6.80417 17.9792 7 18.45 7 19C7 19.55 6.80417 20.0208 6.4125 20.4125C6.02083 20.8042 5.55 21 5 21C4.45 21 3.97917 20.8042 3.5875 20.4125ZM17 21C17 19.05 16.6333 17.2292 15.9 15.5375C15.1667 13.8458 14.1667 12.3667 12.9 11.1C11.6333 9.83333 10.1542 8.83333 8.4625 8.1C6.77083 7.36667 4.95 7 3 7V4C5.36667 4 7.575 4.44167 9.625 5.325C11.675 6.20833 13.475 7.425 15.025 8.975C16.575 10.525 17.7917 12.325 18.675 14.375C19.5583 16.425 20 18.6333 20 21H17ZM11 21C11 19.8833 10.7917 18.8458 10.375 17.8875C9.95833 16.9292 9.38333 16.0833 8.65 15.35C7.91667 14.6167 7.07083 14.0417 6.1125 13.625C5.15417 13.2083 4.11667 13 3 13V10C4.53333 10 5.9625 10.2875 7.2875 10.8625C8.6125 11.4375 9.775 12.225 10.775 13.225C11.775 14.225 12.5625 15.3875 13.1375 16.7125C13.7125 18.0375 14 19.4667 14 21H11Z" fill="#1C1B1F"/></mask><g mask="url(#lm03)"><path d="M3.5875 20.4125C3.19583 20.0208 3 19.55 3 19C3 18.45 3.19583 17.9792 3.5875 17.5875C3.97917 17.1958 4.45 17 5 17C5.55 17 6.02083 17.1958 6.4125 17.5875C6.80417 17.9792 7 18.45 7 19C7 19.55 6.80417 20.0208 6.4125 20.4125C6.02083 20.8042 5.55 21 5 21C4.45 21 3.97917 20.8042 3.5875 20.4125ZM17 21C17 19.05 16.6333 17.2292 15.9 15.5375C15.1667 13.8458 14.1667 12.3667 12.9 11.1C11.6333 9.83333 10.1542 8.83333 8.4625 8.1C6.77083 7.36667 4.95 7 3 7V4C5.36667 4 7.575 4.44167 9.625 5.325C11.675 6.20833 13.475 7.425 15.025 8.975C16.575 10.525 17.7917 12.325 18.675 14.375C19.5583 16.425 20 18.6333 20 21H17ZM11 21C11 19.8833 10.7917 18.8458 10.375 17.8875C9.95833 16.9292 9.38333 16.0833 8.65 15.35C7.91667 14.6167 7.07083 14.0417 6.1125 13.625C5.15417 13.2083 4.11667 13 3 13V10C4.53333 10 5.9625 10.2875 7.2875 10.8625C8.6125 11.4375 9.775 12.225 10.775 13.225C11.775 14.225 12.5625 15.3875 13.1375 16.7125C13.7125 18.0375 14 19.4667 14 21H11Z" fill="#64748B"/><circle cx="5" cy="19" r="2" fill="#16A34A"/></g></svg><svg class="sig-1 light-svg" viewBox="0 0 24 24" fill="none" xmlns="http://www.w3.org/2000/svg"><mask id="lm02" style="mask-type:alpha" maskUnits="userSpaceOnUse" x="3" y="4" width="17" height="17"><path d="M3.5875 20.4125C3.19583 20.0208 3 19.55 3 19C3 18.45 3.19583 17.9792 3.5875 17.5875C3.97917 17.1958 4.45 17 5 17C5.55 17 6.02083 17.1958 6.4125 17.5875C6.80417 17.9792 7 18.45 7 19C7 19.55 6.80417 20.0208 6.4125 20.4125C6.02083 20.8042 5.55 21 5 21C4.45 21 3.97917 20.8042 3.5875 20.4125ZM17 21C17 19.05 16.6333 17.2292 15.9 15.5375C15.1667 13.8458 14.1667 12.3667 12.9 11.1C11.6333 9.83333 10.1542 8.83333 8.4625 8.1C6.77083 7.36667 4.95 7 3 7V4C5.36667 4 7.575 4.44167 9.625 5.325C11.675 6.20833 13.475 7.425 15.025 8.975C16.575 10.525 17.7917 12.325 18.675 14.375C19.5583 16.425 20 18.6333 20 21H17ZM11 21C11 19.8833 10.7917 18.8458 10.375 17.8875C9.95833 16.9292 9.38333 16.0833 8.65 15.35C7.91667 14.6167 7.07083 14.0417 6.1125 13.625C5.15417 13.2083 4.11667 13 3 13V10C4.53333 10 5.9625 10.2875 7.2875 10.8625C8.6125 11.4375 9.775 12.225 10.775 13.225C11.775 14.225 12.5625 15.3875 13.1375 16.7125C13.7125 18.0375 14 19.4667 14 21H11Z" fill="#1C1B1F"/></mask><g mask="url(#lm02)"><path d="M3.5875 20.4125C3.19583 20.0208 3 19.55 3 19C3 18.45 3.19583 17.9792 3.5875 17.5875C3.97917 17.1958 4.45 17 5 17C5.55 17 6.02083 17.1958 6.4125 17.5875C6.80417 17.9792 7 18.45 7 19C7 19.55 6.80417 20.0208 6.4125 20.4125C6.02083 20.8042 5.55 21 5 21C4.45 21 3.97917 20.8042 3.5875 20.4125ZM17 21C17 19.05 16.6333 17.2292 15.9 15.5375C15.1667 13.8458 14.1667 12.3667 12.9 11.1C11.6333 9.83333 10.1542 8.83333 8.4625 8.1C6.77083 7.36667 4.95 7 3 7V4C5.36667 4 7.575 4.44167 9.625 5.325C11.675 6.20833 13.475 7.425 15.025 8.975C16.575 10.525 17.7917 12.325 18.675 14.375C19.5583 16.425 20 18.6333 20 21H17ZM11 21C11 19.8833 10.7917 18.8458 10.375 17.8875C9.95833 16.9292 9.38333 16.0833 8.65 15.35C7.91667 14.6167 7.07083 14.0417 6.1125 13.625C5.15417 13.2083 4.11667 13 3 13V10C4.53333 10 5.9625 10.2875 7.2875 10.8625C8.6125 11.4375 9.775 12.225 10.775 13.225C11.775 14.225 12.5625 15.3875 13.1375 16.7125C13.7125 18.0375 14 19.4667 14 21H11Z" fill="#64748B"/><circle cx="3" cy="21" r="11" fill="#16A34A"/></g></svg><svg class="sig-2 light-svg" viewBox="0 0 24 24" fill="none" xmlns="http://www.w3.org/2000/svg"><mask id="lm01" style="mask-type:alpha" maskUnits="userSpaceOnUse" x="3" y="4" width="17" height="17"><path d="M3.5875 20.4125C3.19583 20.0208 3 19.55 3 19C3 18.45 3.19583 17.9792 3.5875 17.5875C3.97917 17.1958 4.45 17 5 17C5.55 17 6.02083 17.1958 6.4125 17.5875C6.80417 17.9792 7 18.45 7 19C7 19.55 6.80417 20.0208 6.4125 20.4125C6.02083 20.8042 5.55 21 5 21C4.45 21 3.97917 20.8042 3.5875 20.4125ZM17 21C17 19.05 16.6333 17.2292 15.9 15.5375C15.1667 13.8458 14.1667 12.3667 12.9 11.1C11.6333 9.83333 10.1542 8.83333 8.4625 8.1C6.77083 7.36667 4.95 7 3 7V4C5.36667 4 7.575 4.44167 9.625 5.325C11.675 6.20833 13.475 7.425 15.025 8.975C16.575 10.525 17.7917 12.325 18.675 14.375C19.5583 16.425 20 18.6333 20 21H17ZM11 21C11 19.8833 10.7917 18.8458 10.375 17.8875C9.95833 16.9292 9.38333 16.0833 8.65 15.35C7.91667 14.6167 7.07083 14.0417 6.1125 13.625C5.15417 13.2083 4.11667 13 3 13V10C4.53333 10 5.9625 10.2875 7.2875 10.8625C8.6125 11.4375 9.775 12.225 10.775 13.225C11.775 14.225 12.5625 15.3875 13.1375 16.7125C13.7125 18.0375 14 19.4667 14 21H11Z" fill="#1C1B1F"/></mask><g mask="url(#lm01)"><path d="M3.5875 20.4125C3.19583 20.0208 3 19.55 3 19C3 18.45 3.19583 17.9792 3.5875 17.5875C3.97917 17.1958 4.45 17 5 17C5.55 17 6.02083 17.1958 6.4125 17.5875C6.80417 17.9792 7 18.45 7 19C7 19.55 6.80417 20.0208 6.4125 20.4125C6.02083 20.8042 5.55 21 5 21C4.45 21 3.97917 20.8042 3.5875 20.4125ZM17 21C17 19.05 16.6333 17.2292 15.9 15.5375C15.1667 13.8458 14.1667 12.3667 12.9 11.1C11.6333 9.83333 10.1542 8.83333 8.4625 8.1C6.77083 7.36667 4.95 7 3 7V4C5.36667 4 7.575 4.44167 9.625 5.325C11.675 6.20833 13.475 7.425 15.025 8.975C16.575 10.525 17.7917 12.325 18.675 14.375C19.5583 16.425 20 18.6333 20 21H17ZM11 21C11 19.8833 10.7917 18.8458 10.375 17.8875C9.95833 16.9292 9.38333 16.0833 8.65 15.35C7.91667 14.6167 7.07083 14.0417 6.1125 13.625C5.15417 13.2083 4.11667 13 3 13V10C4.53333 10 5.9625 10.2875 7.2875 10.8625C8.6125 11.4375 9.775 12.225 10.775 13.225C11.775 14.225 12.5625 15.3875 13.1375 16.7125C13.7125 18.0375 14 19.4667 14 21H11Z" fill="#16A34A"/><circle cx="3" cy="21" r="17" fill="#16A34A"/></g></svg></span>`:"";
   return`<div class="pill ${urgClass}">${liveIcon}<span class="pill-num">${mins}</span><span class="pill-min">min</span></div>`;
 }
 
@@ -1009,8 +1022,8 @@ function renderCard(g){
   const pinnedClass=isPinned?' pinned':'';
   // M3 Tonal palette colors per route
   const TONES={
-    "#28813F":{dark:{card:"#141a14",tagBg:"#14411f",tagTxt:"#49d26d"},light:{card:"#d0e3d5",tagBg:"rgba(255,255,255,0.7)",tagTxt:"#1e612f"}},
-    "#007CAD":{dark:{card:"#12171a",tagBg:"#003e56",tagTxt:"#00b8ff"},light:{card:"#c7e2ed",tagBg:"rgba(255,255,255,0.7)",tagTxt:"#005d82"}},
+    "#3DAE2B":{dark:{card:"#0E280A",tagBg:"#2B7A1E",tagTxt:"#B5EAAD"},light:{card:"#DAF4D6",tagBg:"rgba(255,255,255,0.7)",tagTxt:"#2B7A1E"}},
+    "#00A0DF":{dark:{card:"#002433",tagBg:"#006D99",tagTxt:"#99E2FF"},light:{card:"#CCF0FE",tagBg:"rgba(255,255,255,0.7)",tagTxt:"#006D99"}},
     "#FDB71A":{dark:{card:"#1a1712",tagBg:"#7e5c0d",tagTxt:"#ffe500"},light:{card:"#ffefcd",tagBg:"rgba(255,255,255,0.7)",tagTxt:"#be8914"}},
     "#9C182F":{dark:{card:"#1a1214",tagBg:"#4e0b17",tagTxt:"#fd3154"},light:{card:"#e9ccd1",tagBg:"rgba(255,255,255,0.7)",tagTxt:"#751122"}},
     "#2B376E":{dark:{card:"#12141f",tagBg:"#161c37",tagTxt:"#7083d7"},light:{card:"#cdd2ee",tagBg:"rgba(255,255,255,0.7)",tagTxt:"#132686"}},
@@ -1134,7 +1147,10 @@ async function update(){
     try{
       const deps=await fetchStop(id);
       if(gen!==_locationGeneration) return; // stale — discard
-      if(deps.length) mergeStopData(deps);
+      if(deps.length){
+        mergeStopData(deps);
+        renderFromCache(); // render progressively as each stop arrives
+      }
     }catch(e){}
     completed++;
     if(gen===_locationGeneration) document.getElementById("updated").textContent=`Updating... ${completed}/${total}`;
@@ -1172,7 +1188,7 @@ async function update(){
     }
   }
   renderFromCache();
-  document.getElementById("updated").textContent=`v5.6-${typeof VERSION!=='undefined'?VERSION:'?'} · Updated ${new Date().toLocaleTimeString("en-US",{hour:"2-digit",minute:"2-digit",second:"2-digit"})}`;
+  document.getElementById("updated").textContent=`v5.7 · Updated ${new Date().toLocaleTimeString("en-US",{hour:"2-digit",minute:"2-digit",second:"2-digit"})}`;
   document.getElementById("dot").classList.remove("error");
 }
 
