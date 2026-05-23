@@ -462,6 +462,205 @@
     return words[0];
   }
 
+  // ===== Route Shape Utilities =====
+
+  /**
+   * Decode a Google-encoded polyline string into [lat, lon] coordinate pairs.
+   * Used by OBA for route shapes.
+   * @param {string} encoded
+   * @returns {Array<[number, number]>}
+   */
+  function decodePolyline(encoded) {
+    const coords = [];
+    let index = 0, lat = 0, lng = 0;
+    while (index < encoded.length) {
+      let b, shift = 0, result = 0;
+      do { b = encoded.charCodeAt(index++) - 63; result |= (b & 0x1f) << shift; shift += 5; } while (b >= 0x20);
+      lat += (result & 1) ? ~(result >> 1) : (result >> 1);
+      shift = 0; result = 0;
+      do { b = encoded.charCodeAt(index++) - 63; result |= (b & 0x1f) << shift; shift += 5; } while (b >= 0x20);
+      lng += (result & 1) ? ~(result >> 1) : (result >> 1);
+      coords.push([lat / 1e5, lng / 1e5]);
+    }
+    return coords;
+  }
+
+  /**
+   * Find the index in a decoded polyline coordinate array closest to a given lat/lon.
+   * Used to split the route shape at the nearest stop.
+   * @param {Array<[number, number]>} coords  — decoded polyline
+   * @param {number} lat
+   * @param {number} lon
+   * @returns {number}  — index of closest point
+   */
+  function findSplitIndex(coords, lat, lon) {
+    let splitIdx = 0, minDist = Infinity;
+    coords.forEach(([clat, clon], i) => {
+      const d = Math.hypot(clat - lat, clon - lon);
+      if (d < minDist) { minDist = d; splitIdx = i; }
+    });
+    return splitIdx;
+  }
+
+  /**
+   * Find the nearest stop to a given lat/lon from an array of stop objects.
+   * @param {number} lat
+   * @param {number} lon
+   * @param {Array<{ stopId: string, lat: number, lon: number }>} stops
+   * @returns {string|null}  — stopId of nearest stop, or null
+   */
+  function findNearestStop(lat, lon, stops) {
+    if (!stops || !stops.length) return null;
+    let nearest = null, minDist = Infinity;
+    for (const s of stops) {
+      if (!s.lat && !s.lon) continue;
+      const d = Math.hypot(s.lat - lat, s.lon - lon);
+      if (d < minDist) { minDist = d; nearest = s.stopId || s.id; }
+    }
+    return nearest;
+  }
+
+  /**
+   * Check whether any of the given service situations affect the route shape.
+   * Returns true if the static cache should be invalidated.
+   * @param {Array} situations  — from TransitAPI.fetchSituationsForRoute()
+   * @returns {boolean}
+   */
+  function hasActiveShapeAlert(situations) {
+    if (!situations || !situations.length) return false;
+    const now = Date.now();
+    const shapeAffecting = ['detour', 'noService', 'reducedService', 'significantDelays'];
+    return situations.some(s => {
+      const windows = s.activeWindows || [];
+      const isActive = windows.length === 0 || windows.some(w => {
+        const start = w.from ? w.from * 1000 : 0;
+        const end = w.to ? w.to * 1000 : Infinity;
+        return now >= start && now <= end;
+      });
+      return isActive && shapeAffecting.includes(s.severity || '');
+    });
+  }
+
+  /**
+   * Parse raw OBA stops-for-route response into the TransitStore direction format.
+   * Returns an array of direction objects ready to save to TransitStore.
+   *
+   * @param {Object} stopsJson   — parsed JSON from fetchStopsForRoute()
+   * @param {string|null} shapePoints  — encoded polyline from fetchShapeForRoute() (fallback)
+   * @returns {Array}  — direction entries [{ name, stopIds, stops, polyline }]
+   */
+  function parseRouteDirections(stopsJson, shapePoints) {
+    const entry = stopsJson.data?.entry || {};
+    const refs = stopsJson.data?.references || {};
+
+    // Build stop lookup from references
+    const stopRefs = {};
+    (refs.stops || []).forEach(s => { stopRefs[s.id] = s; });
+
+    // Get polylines — one per direction if available, else one for whole route
+    const polylineList = (entry.polylines || []).map(p => p.points).filter(Boolean);
+    const fallbackPolyline = shapePoints || null;
+
+    // Get direction groups
+    const groups = entry.stopGroupings?.[0]?.stopGroups || [];
+
+    if (!groups.length) {
+      // No direction groups — treat as single direction
+      const stopIds = (entry.stopIds || []);
+      const stops = {};
+      stopIds.forEach(id => {
+        const s = stopRefs[id] || {};
+        stops[id] = { name: s.name || id, lat: s.lat || 0, lon: s.lon || 0 };
+      });
+      const polyline = polylineList[0] || fallbackPolyline || '';
+      return [{ name: '', stopIds, stops, polyline, schedule: {} }];
+    }
+
+    return groups.map((g, idx) => {
+      const stopIds = g.stopIds || [];
+      const stops = {};
+      stopIds.forEach(id => {
+        const s = stopRefs[id] || {};
+        stops[id] = { name: s.name || id, lat: s.lat || 0, lon: s.lon || 0 };
+      });
+
+      // Assign polyline: try to match by index, fall back to the one that spatially
+      // overlaps this direction's stops (first/last stop proximity check)
+      let polyline = polylineList[idx] || polylineList[0] || fallbackPolyline || '';
+
+      // If multiple polylines, pick the one whose endpoints are closest to this direction's stops
+      if (polylineList.length > 1 && stopIds.length > 0) {
+        const firstStop = stopRefs[stopIds[0]];
+        const lastStop  = stopRefs[stopIds[stopIds.length - 1]];
+        if (firstStop && lastStop) {
+          let bestScore = Infinity, bestPoly = polylineList[0];
+          for (const encoded of polylineList) {
+            const coords = decodePolyline(encoded);
+            if (coords.length < 2) continue;
+            const startDist = Math.hypot(coords[0][0] - firstStop.lat, coords[0][1] - firstStop.lon);
+            const endDist   = Math.hypot(coords[coords.length - 1][0] - lastStop.lat, coords[coords.length - 1][1] - lastStop.lon);
+            const score = startDist + endDist;
+            if (score < bestScore) { bestScore = score; bestPoly = encoded; }
+          }
+          polyline = bestPoly;
+        }
+      }
+
+      return {
+        name: g.name?.name || g.name || `Direction ${idx}`,
+        stopIds,
+        stops,
+        polyline,
+        schedule: {},
+      };
+    });
+  }
+
+  /**
+   * Parse raw OBA schedule-for-stop response into per-route per-direction time arrays.
+   * Returns a map: { routeId: { directionName: { stopId: [ms, ...] } } }
+   *
+   * @param {Object} scheduleJson  — parsed JSON from fetchScheduleForStop()
+   * @param {string} stopId
+   * @param {Function} classifyFn  — classify(type, agencyId, shortName) → { mode, ... }
+   * @param {Function} parseRouteFn  — parseRoute(shortName) → string
+   * @param {Function} resolveDirFn  — resolveDir(route, mode, headsign) → dirIndex
+   * @returns {Array}  — schedule items [{ route, routeId, headsign, dirIndex, mode, color, textColor, scheduleTimes }]
+   */
+  function parseScheduleForStop(scheduleJson, stopId, classifyFn, parseRouteFn, resolveDirFn) {
+    const entry = scheduleJson.data?.entry || {};
+    const refs = scheduleJson.data?.references || {};
+    const routeRefs = {};
+    (refs.routes || []).forEach(rt => { routeRefs[rt.id] = rt; });
+
+    const items = [];
+    for (const sr of entry.stopRouteSchedules || []) {
+      const rt = routeRefs[sr.routeId] || {};
+      const cls = classifyFn(rt.type, rt.agencyId, rt.shortName || '');
+      for (const dir of sr.stopRouteDirectionSchedules || []) {
+        const allTimes = (dir.scheduleStopTimes || [])
+          .map(t => t.arrivalTime || t.departureTime)
+          .filter(Boolean);
+        if (!allTimes.length) continue;
+        const route = parseRouteFn(rt.shortName || '?', rt.type, rt.agencyId);
+        const headsign = dir.tripHeadsign || rt.longName || '';
+        const dirIndex = resolveDirFn(route, cls.mode, headsign);
+        items.push({
+          route,
+          routeId: sr.routeId,
+          headsign,
+          dirIndex,
+          stopId,
+          color: rt.color ? `#${rt.color}` : '#666',
+          textColor: rt.textColor ? `#${rt.textColor}` : '#fff',
+          ...cls,
+          scheduleTimes: allTimes,
+        });
+      }
+    }
+    return items;
+  }
+
   // ===== Exports =====
   return {
     VERSION: VERSION,
@@ -486,6 +685,13 @@
     loadScheduleCache: loadScheduleCache,
     saveScheduleCache: saveScheduleCache,
     getDayType: getDayType,
-    normalizeDirKey: normalizeDirKey
+    normalizeDirKey: normalizeDirKey,
+    // Route shape utilities (new)
+    decodePolyline: decodePolyline,
+    findSplitIndex: findSplitIndex,
+    findNearestStop: findNearestStop,
+    hasActiveShapeAlert: hasActiveShapeAlert,
+    parseRouteDirections: parseRouteDirections,
+    parseScheduleForStop: parseScheduleForStop,
   };
 });

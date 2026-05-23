@@ -1,0 +1,74 @@
+{
+  "city": "Seattle",
+  "obaApiBase": "https://api.pugetsound.onebusaway.org/api/where",
+  "obaApiKey": "55c7b445-e38b-4da6-ba94-0006a4b3a4bf",
+  "classifyRules": "seattle",
+  "defaultStation": "caphill",
+  "stations": {
+    "caphill": {
+      "name": "Capitol Hill",
+      "stops": {
+        "rail": ["40_99610", "40_99603"],
+        "bus": ["1_11180", "1_29270", "1_29262", "1_11060"],
+        "streetcar": ["1_11175"]
+      },
+      "priority": ["8", "1", "2", "First Hill"],
+      "manifest": [
+        { "route": "1", "headsign": "Federal Way Downtown", "color": "#3DAE2B", "textColor": "#FFFFFF", "mode": "rail", "tag": "Light Rail", "badge": "round" },
+        { "route": "1", "headsign": "Lynnwood City Center", "color": "#3DAE2B", "textColor": "#FFFFFF", "mode": "rail", "tag": "Light Rail", "badge": "round" },
+        { "route": "2", "headsign": "Downtown Redmond", "color": "#00A0DF", "textColor": "#FFFFFF", "mode": "rail", "tag": "Light Rail", "badge": "round" },
+        { "route": "2", "headsign": "Lynnwood City Center", "color": "#00A0DF", "textColor": "#FFFFFF", "mode": "rail", "tag": "Light Rail", "badge": "round" },
+        { "route": "8", "headsign": "Mount Baker Transit Center", "color": "#FDB71A", "textColor": "#000000", "mode": "bus", "tag": "KC Bus", "badge": "square" },
+        { "route": "8", "headsign": "Seattle Center", "color": "#FDB71A", "textColor": "#000000", "mode": "bus", "tag": "KC Bus", "badge": "square" },
+        { "route": "11", "headsign": "Madison Park", "color": "#FDB71A", "textColor": "#000000", "mode": "bus", "tag": "KC Bus", "badge": "square" },
+        { "route": "11", "headsign": "Downtown Seattle Capitol Hill Station", "color": "#FDB71A", "textColor": "#000000", "mode": "bus", "tag": "KC Bus", "badge": "square" },
+        { "route": "43", "headsign": "University District Montlake", "color": "#FDB71A", "textColor": "#000000", "mode": "bus", "tag": "KC Bus", "badge": "square" },
+        { "route": "49", "headsign": "U-District Station Capitol Hill", "color": "#FDB71A", "textColor": "#000000", "mode": "bus", "tag": "KC Bus", "badge": "square" },
+        { "route": "49", "headsign": "Downtown Seattle Broadway", "color": "#FDB71A", "textColor": "#000000", "mode": "bus", "tag": "KC Bus", "badge": "square" },
+        { "route": "60", "headsign": "Broadway First Hill", "color": "#FDB71A", "textColor": "#000000", "mode": "bus", "tag": "KC Bus", "badge": "square" },
+        { "route": "60", "headsign": "Westwood Village N Beacon Hill", "color": "#FDB71A", "textColor": "#000000", "mode": "bus", "tag": "KC Bus", "badge": "square" },
+        { "route": "First Hill", "headsign": "Capitol Hill", "color": "#F47836", "textColor": "#FFFFFF", "mode": "streetcar", "tag": "First Hill Streetcar", "badge": "square" },
+        { "route": "First Hill", "headsign": "Pioneer Square", "color": "#F47836", "textColor": "#FFFFFF", "mode": "streetcar", "tag": "First Hill Streetcar", "badge": "square" }
+      ]
+    },
+    "lynnwood": {
+      "name": "Lynnwood City Center",
+      "stops": {
+        "rail": ["40_N23-T1", "40_N23-T2"],
+        "bus": ["29_2035", "29_2107", "29_2108", "29_2109", "29_2110", "29_2115", "29_2116", "29_2117", "29_2119", "29_2167", "29_2168", "29_3311"],
+        "express": ["29_2113", "29_2118", "29_2422", "29_2543", "29_2114", "29_3227"]
+      },
+      "priority": ["1", "2", "Swift Orange", "112"],
+      "manifest": [
+        { "route": "1", "headsign": "Federal Way Downtown", "color": "#3DAE2B", "textColor": "#FFFFFF", "mode": "rail", "tag": "Light Rail", "badge": "round" },
+        { "route": "1", "headsign": "Lynnwood City Center", "color": "#3DAE2B", "textColor": "#FFFFFF", "mode": "rail", "tag": "Light Rail", "badge": "round" },
+        { "route": "2", "headsign": "Downtown Redmond", "color": "#00A0DF", "textColor": "#FFFFFF", "mode": "rail", "tag": "Light Rail", "badge": "round" },
+        { "route": "2", "headsign": "Lynnwood City Center", "color": "#00A0DF", "textColor": "#FFFFFF", "mode": "rail", "tag": "Light Rail", "badge": "round" },
+        { "route": "535", "headsign": "Bellevue", "color": "#2B376E", "textColor": "#FFFFFF", "mode": "express", "tag": "ST Express", "badge": "square" },
+        { "route": "Swift Orange", "headsign": "McCollum Park", "color": "#F24C21", "textColor": "#FFFFFF", "mode": "swift", "tag": "Swift Orange", "badge": "square", "isSwift": true },
+        { "route": "102", "headsign": "Lynnwood City Center Station", "color": "#0070C0", "textColor": "#FFFFFF", "mode": "bus", "tag": "Community Transit", "badge": "square" },
+        { "route": "103", "headsign": "Lynnwood City Center Station", "color": "#0070C0", "textColor": "#FFFFFF", "mode": "bus", "tag": "Community Transit", "badge": "square" },
+        { "route": "114", "headsign": "Aurora Village", "color": "#0070C0", "textColor": "#FFFFFF", "mode": "bus", "tag": "Community Transit", "badge": "square" },
+        { "route": "117", "headsign": "Mukilteo Ferry", "color": "#0070C0", "textColor": "#FFFFFF", "mode": "bus", "tag": "Community Transit", "badge": "square" },
+        { "route": "120", "headsign": "UW Bothell/Cascadia College", "color": "#0070C0", "textColor": "#FFFFFF", "mode": "bus", "tag": "Community Transit", "badge": "square" },
+        { "route": "130", "headsign": "Edmonds", "color": "#0070C0", "textColor": "#FFFFFF", "mode": "bus", "tag": "Community Transit", "badge": "square" },
+        { "route": "201", "headsign": "Lynnwood City Center Station", "color": "#0070C0", "textColor": "#FFFFFF", "mode": "bus", "tag": "Community Transit", "badge": "square" },
+        { "route": "202", "headsign": "Lynnwood City Center Station", "color": "#0070C0", "textColor": "#FFFFFF", "mode": "bus", "tag": "Community Transit", "badge": "square" }
+      ]
+    },
+    "dennypark": {
+      "name": "Denny & Westlake",
+      "stops": {
+        "bus": ["1_2255", "1_2291", "1_2260", "1_2285"],
+        "streetcar": ["1_26665", "1_26690", "1_26645"]
+      },
+      "priority": ["8", "C", "South Lake Union"],
+      "manifest": [
+        { "route": "8", "headsign": "Mount Baker Transit Center", "color": "#FDB71A", "textColor": "#000000", "mode": "bus", "tag": "KC Bus", "badge": "square" },
+        { "route": "40", "headsign": "Northgate Station Fremont", "color": "#FDB71A", "textColor": "#000000", "mode": "bus", "tag": "KC Bus", "badge": "square" },
+        { "route": "C", "headsign": "South Lake Union Downtown Seattle", "color": "#9C182F", "textColor": "#FFFFFF", "mode": "rapid", "tag": "RapidRide", "badge": "square" },
+        { "route": "South Lake Union", "headsign": "Lake Union", "color": "#F47836", "textColor": "#FFFFFF", "mode": "streetcar", "tag": "South Lake Union Streetcar", "badge": "square" }
+      ]
+    }
+  }
+}

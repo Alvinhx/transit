@@ -1,0 +1,527 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>NextUp Transit — Route Config</title>
+  <link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Noto+Sans:wght@400;500;600;700&display=swap">
+  <link rel="stylesheet" href="https://fonts.googleapis.com/icon?family=Material+Icons">
+  <link rel="stylesheet" href="https://unpkg.com/leaflet@1.9.4/dist/leaflet.css">
+  <script src="https://unpkg.com/leaflet@1.9.4/dist/leaflet.js"></script>
+  <style>
+    * { margin: 0; padding: 0; box-sizing: border-box; }
+    body { font-family: 'Noto Sans', sans-serif; background: #0f1318; color: #e0e0e0; height: 100vh; overflow: hidden; }
+    .layout { display: flex; height: 100vh; }
+
+    /* Left panel */
+    .panel-left { width: 360px; border-right: 1px solid #2a2f38; display: flex; flex-direction: column; flex-shrink: 0; }
+    .panel-header { padding: 16px; border-bottom: 1px solid #2a2f38; }
+    .panel-header h1 { font-size: 16px; font-weight: 600; margin-bottom: 8px; }
+    .panel-header .actions { display: flex; gap: 8px; margin-bottom: 10px; }
+    .btn { padding: 6px 12px; border: 1px solid #3a4050; border-radius: 6px; background: #1a1f28; color: #e0e0e0; font-size: 12px; cursor: pointer; font-family: inherit; }
+    .btn:hover { background: #252b36; border-color: #4a5060; }
+    .btn.primary { background: #1a6b3a; border-color: #2a8b4a; }
+    .btn.primary:hover { background: #1f7d44; }
+    .btn.danger { background: #6b1a1a; border-color: #8b2a2a; }
+    .btn.danger:hover { background: #7d1f1f; }
+    .btn:disabled { opacity: 0.4; cursor: not-allowed; }
+
+    .search-box { width: 100%; padding: 8px 12px; border: 1px solid #2a2f38; border-radius: 6px; background: #1a1f28; color: #e0e0e0; font-size: 13px; font-family: inherit; }
+    .search-box:focus { outline: none; border-color: #4a8af4; }
+
+    .agency-filter { display: flex; gap: 4px; flex-wrap: wrap; margin-top: 8px; }
+    .agency-chip { padding: 3px 8px; border: 1px solid #3a4050; border-radius: 4px; background: #1a1f28; color: #888; font-size: 11px; cursor: pointer; font-family: inherit; }
+    .agency-chip:hover { border-color: #4a5060; color: #ccc; }
+    .agency-chip.active { background: #1a2a3a; border-color: #4a8af4; color: #4a8af4; }
+
+    .route-list { flex: 1; overflow-y: auto; }
+    .route-item { padding: 10px 16px; border-bottom: 1px solid #1a1f28; cursor: pointer; display: flex; align-items: center; gap: 10px; }
+    .route-item:hover { background: #1a1f28; }
+    .route-item.active { background: #1a2a3a; border-right: 3px solid #4a8af4; }
+    .route-color-bar { width: 3px; height: 28px; border-radius: 2px; flex-shrink: 0; }
+    .route-info { flex: 1; min-width: 0; }
+    .route-name { font-size: 13px; font-weight: 500; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+    .route-meta { font-size: 11px; color: #888; margin-top: 2px; }
+    .route-status { font-size: 10px; padding: 2px 6px; border-radius: 3px; background: #1a3a1a; color: #6c6; flex-shrink: 0; }
+    .route-status.warn { background: #3a3a1a; color: #cc6; }
+    .route-status.error { background: #3a1a1a; color: #c66; }
+
+    /* Right panel */
+    .panel-right { flex: 1; display: flex; flex-direction: column; }
+    .map-container { flex: 2; position: relative; min-height: 0; }
+    #map { width: 100%; height: 100%; }
+
+    .detail-panel { flex: 1; border-top: 1px solid #2a2f38; overflow-y: auto; padding: 16px; min-height: 0; }
+    .detail-header { display: flex; align-items: center; justify-content: space-between; margin-bottom: 12px; }
+    .detail-header h2 { font-size: 14px; font-weight: 600; margin: 0; }
+    .detail-section { margin-bottom: 16px; }
+    .detail-section h3 { font-size: 12px; font-weight: 600; color: #888; margin-bottom: 6px; text-transform: uppercase; letter-spacing: 0.5px; }
+
+    .kv-grid { display: flex; gap: 24px; flex-wrap: wrap; }
+    .kv-pair { display: flex; flex-direction: column; }
+    .kv-pair .kv-key { font-size: 11px; color: #888; margin-bottom: 2px; }
+    .kv-pair .kv-value { font-size: 13px; color: #e0e0e0; font-weight: 500; }
+
+    .dir-grid { display: flex; gap: 12px; }
+    .dir-card { background: #1a1f28; border: 1px solid #2a2f38; border-radius: 6px; padding: 10px; flex: 1; min-width: 0; }
+    .dir-card .dir-name { font-size: 12px; font-weight: 600; margin-bottom: 4px; }
+    .dir-card .dir-meta { font-size: 11px; color: #888; }
+
+    .stop-list { max-height: 150px; overflow-y: auto; font-size: 11px; color: #aaa; padding-left: 12px; margin-top: 4px; }
+    .stop-list li { padding: 2px 0; }
+
+    .dir-toggle { display: flex; gap: 4px; }
+    .dir-toggle .toggle-btn { padding: 4px 10px; border: 1px solid #3a4050; border-radius: 4px; background: #1a1f28; color: #888; font-size: 11px; cursor: pointer; font-family: inherit; }
+    .dir-toggle .toggle-btn.active { background: #1a2a3a; border-color: #4a8af4; color: #4a8af4; }
+
+    .status-bar { padding: 8px 16px; border-top: 1px solid #2a2f38; font-size: 11px; color: #888; display: flex; justify-content: space-between; }
+
+    .loading-overlay { position: absolute; inset: 0; background: rgba(15,19,24,0.85); display: flex; align-items: center; justify-content: center; z-index: 1000; }
+    .loading-overlay .spinner { font-size: 14px; color: #aaa; }
+    .hidden { display: none !important; }
+
+    .toast { position: fixed; bottom: 20px; right: 20px; padding: 10px 16px; border-radius: 6px; font-size: 12px; z-index: 9999; animation: fadeIn 0.2s; }
+    .toast.success { background: #1a3a1a; border: 1px solid #2a5a2a; color: #6c6; }
+    .toast.error { background: #3a1a1a; border: 1px solid #5a2a2a; color: #c66; }
+    @keyframes fadeIn { from { opacity: 0; transform: translateY(10px); } to { opacity: 1; transform: translateY(0); } }
+  </style>
+</head>
+<body>
+<div class="layout">
+  <div class="panel-left">
+    <div class="panel-header">
+      <h1>Route Config</h1>
+      <div class="actions">
+        <button class="btn primary" onclick="refetchAll()">Re-fetch All</button>
+        <button class="btn" onclick="refetchSelected()" id="btnRefetchOne" disabled>Re-fetch Selected</button>
+      </div>
+      <input type="text" class="search-box" placeholder="Search routes..." oninput="filterRoutes(this.value)">
+      <div class="agency-filter" id="agencyFilter"></div>
+    </div>
+    <div class="route-list" id="routeList"></div>
+    <div class="status-bar">
+      <span id="statusCount">0 routes</span>
+      <span id="statusFile">routes-data.json</span>
+    </div>
+  </div>
+
+  <div class="panel-right">
+    <div class="map-container">
+      <div id="map"></div>
+      <div class="loading-overlay hidden" id="loadingOverlay">
+        <div class="spinner">Loading...</div>
+      </div>
+    </div>
+    <div class="detail-panel" id="detailPanel">
+      <h2>Select a route to view details</h2>
+    </div>
+  </div>
+</div>
+
+<script>
+let routesData = null;
+let selectedRouteId = null;
+let map = null;
+let mapLayers = [];
+let visibleDirs = 'all'; // 'all', 0, 1, 2...
+let activeAgency = 'all';
+
+const AGENCY_NAMES = {
+  '1': 'KC Metro',
+  '40': 'Sound Transit',
+  '23': 'Streetcar',
+  '29': 'Community Transit',
+  '96': 'Monorail',
+};
+
+const OBA_BASE = 'https://api.pugetsound.onebusaway.org/api/where';
+const OBA_KEY = '55c7b445-e38b-4da6-ba94-0006a4b3a4bf';
+
+async function init() {
+  map = L.map('map').setView([47.6, -122.3], 11);
+  L.tileLayer('https://{s}.basemaps.cartocdn.com/dark_all/{z}/{x}/{y}{r}.png', { maxZoom: 19 }).addTo(map);
+  await loadRoutesData();
+  renderRouteList();
+}
+
+async function loadRoutesData() {
+  try {
+    const res = await fetch('/api/routes-data');
+    routesData = await res.json();
+    document.getElementById('statusCount').textContent = `${Object.keys(routesData.routes || {}).length} routes`;
+    renderAgencyFilter();
+  } catch (e) {
+    toast('Failed to load routes data: ' + e.message, 'error');
+  }
+}
+
+function renderAgencyFilter() {
+  if (!routesData || !routesData.routes) return;
+  const agencies = new Set();
+  Object.values(routesData.routes).forEach(r => { if (r.agencyId) agencies.add(r.agencyId); });
+
+  const container = document.getElementById('agencyFilter');
+  let html = `<button class="agency-chip active" onclick="setAgency('all')">All</button>`;
+  [...agencies].sort().forEach(id => {
+    const name = AGENCY_NAMES[id] || `Agency ${id}`;
+    html += `<button class="agency-chip" onclick="setAgency('${id}')">${name}</button>`;
+  });
+  container.innerHTML = html;
+}
+
+function setAgency(agency) {
+  activeAgency = agency;
+  document.querySelectorAll('.agency-chip').forEach(btn => {
+    btn.classList.toggle('active', btn.textContent === (agency === 'all' ? 'All' : (AGENCY_NAMES[agency] || `Agency ${agency}`)));
+  });
+  renderRouteList(document.querySelector('.search-box').value);
+}
+
+function renderRouteList(filter = '') {
+  const list = document.getElementById('routeList');
+  if (!routesData || !routesData.routes) { list.innerHTML = '<div style="padding:16px;color:#888">No data</div>'; return; }
+
+  const routes = Object.entries(routesData.routes)
+    .map(([id, r]) => ({ id, ...r }))
+    .filter(r => {
+      if (activeAgency !== 'all' && r.agencyId !== activeAgency) return false;
+      if (!filter) return true;
+      const q = filter.toLowerCase();
+      return (r.shortName || '').toLowerCase().includes(q) ||
+             (r.longName || '').toLowerCase().includes(q) ||
+             r.id.toLowerCase().includes(q);
+    })
+    .sort((a, b) => {
+      const aName = a.shortName || a.id;
+      const bName = b.shortName || b.id;
+      const aNum = parseInt(aName); const bNum = parseInt(bName);
+      if (!isNaN(aNum) && !isNaN(bNum)) return aNum - bNum;
+      return aName.localeCompare(bName);
+    });
+
+  list.innerHTML = routes.map(r => {
+    const dirs = r.directions || [];
+    const totalStops = dirs.reduce((sum, d) => sum + (d.stopIds || []).length, 0);
+    const hasPolyline = dirs.some(d => d.polyline && d.polyline.length > 50);
+    const color = r.color || '#666';
+    const active = r.id === selectedRouteId ? 'active' : '';
+    const statusClass = hasPolyline ? '' : 'warn';
+    const statusText = hasPolyline ? `${dirs.length}d` : 'no shape';
+    const displayName = r.shortName ? `${r.shortName} — ${r.longName || ''}` : (r.longName || r.id);
+
+    return `<div class="route-item ${active}" onclick="selectRoute('${r.id}')">
+      <div class="route-color-bar" style="background:${color}"></div>
+      <div class="route-info">
+        <div class="route-name">${displayName}</div>
+        <div class="route-meta">${totalStops} stops · ${dirs.length} directions</div>
+      </div>
+      <div class="route-status ${statusClass}">${statusText}</div>
+    </div>`;
+  }).join('');
+}
+
+function filterRoutes(q) { renderRouteList(q); }
+
+function selectRoute(routeId) {
+  selectedRouteId = routeId;
+  visibleDirs = 'all'; // reset direction filter when switching routes
+  document.getElementById('btnRefetchOne').disabled = false;
+  renderRouteList(document.querySelector('.search-box').value);
+  drawRouteOnMap(routeId);
+  renderDetail(routeId);
+}
+
+function drawRouteOnMap(routeId) {
+  mapLayers.forEach(l => map.removeLayer(l));
+  mapLayers = [];
+
+  const route = routesData.routes[routeId];
+  if (!route) return;
+
+  const colors = ['#4a8af4', '#f4a04a', '#4af48a', '#f44a8a'];
+  const bounds = [];
+
+  (route.directions || []).forEach((dir, idx) => {
+    if (visibleDirs !== 'all' && visibleDirs !== idx) return;
+    const color = colors[idx % colors.length];
+
+    if (dir.polyline) {
+      const coords = decodePolyline(dir.polyline);
+      if (coords.length > 1) {
+        const line = L.polyline(coords, { color, weight: 4, opacity: 0.8 }).addTo(map);
+        mapLayers.push(line);
+        bounds.push(...coords);
+      }
+    }
+
+    // Classify stops as on-route or off-route
+    const polyCoords = dir.polyline ? decodePolyline(dir.polyline) : [];
+    const offRouteCoords = [];
+
+    (dir.stopIds || []).forEach(sid => {
+      const s = (dir.stops || {})[sid];
+      if (s && s.lat && s.lon) {
+        let onRoute = true;
+        if (polyCoords.length > 5) {
+          const minDist = polyCoords.reduce((min, [lat, lon]) => {
+            const d = Math.hypot(s.lat - lat, s.lon - lon);
+            return d < min ? d : min;
+          }, Infinity);
+          onRoute = minDist <= 0.003;
+        }
+
+        if (!onRoute) offRouteCoords.push([s.lat, s.lon]);
+
+        const markerOpts = onRoute
+          ? { radius: 5, color, fillColor: '#0f1318', fillOpacity: 1, weight: 2 }
+          : { radius: 4, color: '#666', fillColor: '#0f1318', fillOpacity: 1, weight: 1.5, dashArray: '3,3' };
+
+        const marker = L.circleMarker([s.lat, s.lon], markerOpts)
+          .addTo(map).bindTooltip(`${onRoute ? '' : '⚠️ '}${s.name || sid}`, { direction: 'top' });
+        mapLayers.push(marker);
+        bounds.push([s.lat, s.lon]);
+      }
+    });
+
+    // Draw dashed grey line connecting off-route stops
+    if (offRouteCoords.length > 1) {
+      const offLine = L.polyline(offRouteCoords, {
+        color: '#666', weight: 2, opacity: 0.5, dashArray: '6,6'
+      }).addTo(map);
+      mapLayers.push(offLine);
+    }
+  });
+
+  if (bounds.length > 0) map.fitBounds(bounds, { padding: [30, 30] });
+}
+
+function setVisibleDir(dir) {
+  visibleDirs = dir;
+  document.querySelectorAll('.dir-toggle .toggle-btn').forEach(btn => {
+    const val = btn.dataset.dir;
+    btn.classList.toggle('active', val === String(dir));
+  });
+  if (selectedRouteId) drawRouteOnMap(selectedRouteId);
+}
+
+function renderDetail(routeId) {
+  const panel = document.getElementById('detailPanel');
+  const route = routesData.routes[routeId];
+  if (!route) { panel.innerHTML = '<h2>Route not found</h2>'; return; }
+
+  const dirs = route.directions || [];
+  const colors = ['#4a8af4', '#f4a04a', '#4af48a', '#f44a8a'];
+
+  let html = `<div class="detail-header">
+    <h2>${route.shortName || ''} — ${route.longName || routeId}</h2>
+    <div class="dir-toggle">
+      <button class="toggle-btn active" data-dir="all" onclick="setVisibleDir('all')">All</button>
+      ${dirs.map((d, i) => `<button class="toggle-btn" data-dir="${i}" onclick="setVisibleDir(${i})">${d.name || 'Dir ' + i}</button>`).join('')}
+    </div>
+  </div>`;
+
+  html += `<div class="detail-section">
+    <div class="kv-grid">
+      <div class="kv-pair"><span class="kv-key">Route ID</span><span class="kv-value">${routeId}</span></div>
+      <div class="kv-pair"><span class="kv-key">Type</span><span class="kv-value">${routeTypeLabel(route.type)}</span></div>
+      <div class="kv-pair"><span class="kv-key">Agency</span><span class="kv-value">${route.agencyId || '?'}</span></div>
+      <div class="kv-pair"><span class="kv-key">Color</span><span class="kv-value"><span style="display:inline-block;width:12px;height:12px;border-radius:2px;background:${route.color||'#666'};vertical-align:middle;margin-right:4px"></span>${route.color || 'none'}</span></div>
+      <div class="kv-pair"><span class="kv-key">Directions</span><span class="kv-value">${dirs.length}</span></div>
+      <div class="kv-pair"><span class="kv-key">Total Stops</span><span class="kv-value">${dirs.reduce((s,d) => s + (d.stopIds||[]).length, 0)}</span></div>
+    </div>
+  </div>`;
+
+  html += `<div class="detail-section"><h3>Directions</h3><div class="dir-grid">`;
+  dirs.forEach((dir, i) => {
+    const polyLen = dir.polyline ? decodePolyline(dir.polyline).length : 0;
+    const color = colors[i % colors.length];
+    html += `<div class="dir-card" style="border-top: 2px solid ${color}">
+      <div class="dir-name">${dir.name || 'Direction ' + i}</div>
+      <div class="dir-meta">${(dir.stopIds||[]).length} stops · ${polyLen} polyline pts</div>
+      <ol class="stop-list">${(dir.stopIds||[]).map(sid => {
+        const s = (dir.stops||{})[sid];
+        return `<li>${s ? s.name : sid}</li>`;
+      }).join('')}</ol>
+    </div>`;
+  });
+  html += '</div></div>';
+  panel.innerHTML = html;
+}
+
+function routeTypeLabel(type) {
+  return { 0: 'Light Rail/Tram', 1: 'Subway', 2: 'Commuter Rail', 3: 'Bus', 4: 'Ferry' }[type] || `Type ${type}`;
+}
+
+async function refetchSelected() {
+  if (!selectedRouteId) return;
+  showLoading(true);
+  try {
+    const route = routesData.routes[selectedRouteId];
+    const agencyId = route.agencyId || selectedRouteId.split('_')[0];
+    const gtfsRouteId = selectedRouteId.replace(/^\d+_/, ''); // strip agency prefix
+
+    // Fetch shape from GTFS for each direction
+    const directions = route.directions || [];
+    let updated = 0;
+    for (let i = 0; i < directions.length; i++) {
+      try {
+        const res = await fetch(`/api/gtfs/shape/${agencyId}/${gtfsRouteId}/${i}`);
+        if (res.ok) {
+          const shape = await res.json();
+          if (shape.polyline) {
+            directions[i].polyline = shape.polyline;
+            updated++;
+          }
+        }
+      } catch (e) { /* skip this direction */ }
+    }
+
+    if (updated > 0) {
+      await saveRoute(selectedRouteId, route);
+      toast(`Re-fetched ${selectedRouteId} from GTFS — ${updated} directions updated`, 'success');
+    } else {
+      // Fallback to OBA if GTFS has no data
+      toast('No GTFS shape found, trying OBA...', 'success');
+      const obaDirs = await fetchRouteFromOBA(selectedRouteId);
+      if (obaDirs) {
+        route.directions = obaDirs;
+        await saveRoute(selectedRouteId, route);
+        toast(`Re-fetched ${selectedRouteId} from OBA — ${obaDirs.length} directions`, 'success');
+      }
+    }
+    selectRoute(selectedRouteId);
+  } catch (e) {
+    toast('Re-fetch failed: ' + e.message, 'error');
+  }
+  showLoading(false);
+}
+
+async function refetchAll() {
+  if (!confirm('Re-fetch all routes from GTFS (agency data)? This may take a moment on first run while feeds are downloaded.')) return;
+  showLoading(true);
+  const ids = Object.keys(routesData.routes || {});
+  let success = 0, failed = 0;
+
+  for (const id of ids) {
+    try {
+      const route = routesData.routes[id];
+      const agencyId = route.agencyId || id.split('_')[0];
+      const gtfsRouteId = id.replace(/^\d+_/, '');
+      const directions = route.directions || [];
+      let dirUpdated = 0;
+
+      for (let i = 0; i < directions.length; i++) {
+        try {
+          const res = await fetch(`/api/gtfs/shape/${agencyId}/${gtfsRouteId}/${i}`);
+          if (res.ok) {
+            const shape = await res.json();
+            if (shape.polyline) { directions[i].polyline = shape.polyline; dirUpdated++; }
+          }
+        } catch (e) {}
+      }
+
+      if (dirUpdated > 0) success++;
+      else failed++;
+    } catch (e) { failed++; }
+  }
+
+  try {
+    await fetch('/api/routes-data', { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify(routesData) });
+    toast(`Done: ${success} updated from GTFS, ${failed} unchanged`, 'success');
+    renderRouteList();
+  } catch (e) { toast('Failed to save: ' + e.message, 'error'); }
+  showLoading(false);
+}
+
+async function fetchRouteFromOBA(routeId) {
+  const url = `${OBA_BASE}/stops-for-route/${routeId}.json?key=${OBA_KEY}&includePolylines=true`;
+  const res = await fetch(url);
+  const j = await res.json();
+  const entry = j.data?.entry || {};
+  const refs = j.data?.references || {};
+
+  const stopRefs = {};
+  (refs.stops || []).forEach(s => { stopRefs[s.id] = s; });
+
+  const groups = entry.stopGroupings?.[0]?.stopGroups || [];
+  return groups.map((g, idx) => {
+    const stopIds = g.stopIds || [];
+    const stops = {};
+    stopIds.forEach(id => { const s = stopRefs[id] || {}; stops[id] = { name: s.name || id, lat: s.lat || 0, lon: s.lon || 0 }; });
+
+    const polylines = g.polylines || [];
+    let polyline = '';
+    if (polylines.length === 1) { polyline = polylines[0].points || ''; }
+    else if (polylines.length > 1) { polyline = combinePolylines(polylines.map(p => p.points || '')); }
+
+    return { name: g.name?.name || `Direction ${idx}`, stopIds, stops, polyline };
+  });
+}
+
+function combinePolylines(encodedList) {
+  // Instead of combining all segments (which creates loops from variant routes),
+  // pick the LONGEST polyline — it's almost always the primary/regular service.
+  let longest = '';
+  let longestLen = 0;
+  for (const encoded of encodedList) {
+    if (!encoded) continue;
+    const coords = decodePolyline(encoded);
+    if (coords.length > longestLen) {
+      longestLen = coords.length;
+      longest = encoded;
+    }
+  }
+  return longest;
+}
+
+async function saveRoute(routeId, routeData) {
+  await fetch(`/api/routes-data/${encodeURIComponent(routeId)}`, { method: 'PATCH', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify(routeData) });
+}
+
+function decodePolyline(encoded) {
+  const points = [];
+  let index = 0, lat = 0, lng = 0;
+  while (index < encoded.length) {
+    let shift = 0, result = 0, b;
+    do { b = encoded.charCodeAt(index++) - 63; result |= (b & 0x1f) << shift; shift += 5; } while (b >= 0x20);
+    lat += (result & 1) ? ~(result >> 1) : (result >> 1);
+    shift = 0; result = 0;
+    do { b = encoded.charCodeAt(index++) - 63; result |= (b & 0x1f) << shift; shift += 5; } while (b >= 0x20);
+    lng += (result & 1) ? ~(result >> 1) : (result >> 1);
+    points.push([lat / 1e5, lng / 1e5]);
+  }
+  return points;
+}
+
+function encodePolyline(points) {
+  let encoded = '', prevLat = 0, prevLng = 0;
+  for (const [lat, lng] of points) {
+    const latInt = Math.round(lat * 1e5), lngInt = Math.round(lng * 1e5);
+    encoded += encodeValue(latInt - prevLat) + encodeValue(lngInt - prevLng);
+    prevLat = latInt; prevLng = lngInt;
+  }
+  return encoded;
+}
+
+function encodeValue(v) {
+  v = v < 0 ? ~(v << 1) : (v << 1);
+  let s = '';
+  while (v >= 0x20) { s += String.fromCharCode((0x20 | (v & 0x1f)) + 63); v >>= 5; }
+  s += String.fromCharCode(v + 63);
+  return s;
+}
+
+function showLoading(show) { document.getElementById('loadingOverlay').classList.toggle('hidden', !show); }
+function sleep(ms) { return new Promise(r => setTimeout(r, ms)); }
+function toast(msg, type = 'success') {
+  const el = document.createElement('div');
+  el.className = `toast ${type}`;
+  el.textContent = msg;
+  document.body.appendChild(el);
+  setTimeout(() => el.remove(), 4000);
+}
+
+init();
+</script>
+</body>
+</html>
