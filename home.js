@@ -1,4 +1,4 @@
-/* NextUp Transit — home.js v6.0 */
+/* NextUp Transit — home.js v6.1 */
 /* App logic: station config, fetch, render, update, boot */
 
 // OBA API config — overridden by city JSON at boot
@@ -19,6 +19,7 @@ const CLASSIFY_RULES = {
     if(type===3&&agencyId==="40")return{mode:"express",tag:"ST Express",badge:"square"};
     if(type===3&&(shortName||"").match(/^Swift/i))return{mode:"swift",tag:shortName,badge:"square",isSwift:true};
     if(type===3&&(shortName||"").match(/Line$/i))return{mode:"rapid",tag:"RapidRide",badge:"square"};
+    if(agencyId==="29")return{mode:"bus",tag:"Community Transit",badge:"square"};
     return{mode:"bus",tag:"KC Bus",badge:"square"};
   }
 };
@@ -51,7 +52,7 @@ async function loadCityConfig(cityFile) {
 
   // Version-gate the TransitStore — clear if schema version changed
   // Bump this string whenever the store structure changes incompatibly
-  const STORE_VERSION = 'v2';
+  const STORE_VERSION = 'v3';
   try {
     const storedVersion = localStorage.getItem('nextup_transit_store_version');
     if (storedVersion !== STORE_VERSION) {
@@ -835,40 +836,51 @@ var _lpTimer=null;
 var _lpFired=false;
 function attachLongPress(){
   document.querySelectorAll(".card[data-route]").forEach(function(card){
+    var _touchStartY = 0;
+    var _touchMoved = false;
     function startPress(e){
       _lpFired=false;
+      _touchMoved=false;
+      if(e.touches) _touchStartY = e.touches[0].clientY;
       var el=card;
       _lpTimer=setTimeout(function(){
+        if(_touchMoved) return; // finger moved — don't fire long-press
         _lpFired=true;
         if(navigator.vibrate) navigator.vibrate(30);
         togglePriority(el);
       },500);
     }
     function endPress(){clearTimeout(_lpTimer);}
-    function cancelPress(){clearTimeout(_lpTimer);}
+    function cancelPress(){clearTimeout(_lpTimer); _touchMoved=true;}
     var _touchHandled = false;
     card.addEventListener("touchstart",function(e){startPress(e);},{passive:true});
     card.addEventListener("touchend",function(e){
       var wasFired=_lpFired;
       endPress();
+      // If finger moved (scroll), don't fire tap
+      if(_touchMoved) return;
       // Short tap (not long-press) → open detail
       if(!wasFired){
         _touchHandled = true;
-        setTimeout(function(){ _touchHandled = false; }, 500); // reset after click would have fired
+        setTimeout(function(){ _touchHandled = false; }, 500);
         var key=card.getAttribute("data-key");
         var g=cache.find(function(c){return(c.route+"|"+c.headsign+"|"+c.mode)===key;});
         if(g&&typeof openRouteDetail==="function") openRouteDetail(g);
       }
     });
-    card.addEventListener("touchmove",cancelPress);
+    card.addEventListener("touchmove",function(e){
+      // If finger moved more than 10px vertically, it's a scroll
+      if(e.touches && Math.abs(e.touches[0].clientY - _touchStartY) > 10){
+        _touchMoved=true;
+        clearTimeout(_lpTimer);
+      }
+    },{passive:true});
     card.addEventListener("touchcancel",cancelPress);
     card.addEventListener("mousedown",startPress);
     card.addEventListener("mouseleave",cancelPress);
-    // Use 'click' (not mouseup) so desktop only fires once per click
-    // Skip if already handled by touchend (prevents double-fire on touch devices)
     card.addEventListener("click",function(){
-      if(_lpFired) return; // long-press already handled — ignore the click
-      if(_touchHandled) return; // touchend already handled — ignore the synthetic click
+      if(_lpFired) return;
+      if(_touchHandled) return;
       var key=card.getAttribute("data-key");
       var g=cache.find(function(c){return(c.route+"|"+c.headsign+"|"+c.mode)===key;});
       if(g&&typeof openRouteDetail==="function") openRouteDetail(g);
@@ -963,7 +975,7 @@ async function update(){
     }
   }
   renderFromCache();
-  document.getElementById("updated").textContent=`v6.0-${typeof VERSION!=='undefined'?VERSION:'?'} · Updated ${new Date().toLocaleTimeString("en-US",{hour:"2-digit",minute:"2-digit",second:"2-digit"})}`;
+  document.getElementById("updated").textContent=`v6.1-${typeof VERSION!=='undefined'?VERSION:'?'} · Updated ${new Date().toLocaleTimeString("en-US",{hour:"2-digit",minute:"2-digit",second:"2-digit"})}`;
   document.getElementById("dot").classList.remove("error");
 }
 

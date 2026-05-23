@@ -89,8 +89,17 @@ const _ROUTE_ID_MAP = {
   // ST Express
   "535":             "40_535",
   // Swift BRT
-  "Swift Orange":    "29_SWIFT_ORANGE",
-  "Swift Blue":      "29_SWIFT_BLUE",
+  "Swift Orange":    "29_703",
+  "Swift Blue":      "29_701",
+  // Community Transit
+  "102":             "29_102",
+  "103":             "29_103",
+  "114":             "29_114",
+  "117":             "29_117",
+  "120":             "29_120",
+  "130":             "29_130",
+  "201":             "29_201",
+  "202":             "29_202",
 };
 
 // ===== MAP STYLE CONSTANTS (from Figma M3 Tonal Palette) =====
