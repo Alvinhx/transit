@@ -1,4 +1,4 @@
-/* NextUp Transit — home.js v6.1 */
+/* NextUp Transit — home.js v6.2 */
 /* App logic: station config, fetch, render, update, boot */
 
 // OBA API config — overridden by city JSON at boot
@@ -975,7 +975,7 @@ async function update(){
     }
   }
   renderFromCache();
-  document.getElementById("updated").textContent=`v6.1-${typeof VERSION!=='undefined'?VERSION:'?'} · Updated ${new Date().toLocaleTimeString("en-US",{hour:"2-digit",minute:"2-digit",second:"2-digit"})}`;
+  document.getElementById("updated").textContent=`v6.2-${typeof VERSION!=='undefined'?VERSION:'?'} · Updated ${new Date().toLocaleTimeString("en-US",{hour:"2-digit",minute:"2-digit",second:"2-digit"})}`;
   document.getElementById("dot").classList.remove("error");
 }
 
