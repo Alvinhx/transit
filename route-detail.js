@@ -497,10 +497,14 @@ function _initSheetDrag() {
     setTimeout(_refitMapToSheet, 320);
   }
 
-  // Touch
-  handle.addEventListener('touchstart', e => onDragStart(e.touches[0].clientY), { passive: true });
-  handle.addEventListener('touchmove', e => { e.preventDefault(); onDragMove(e.touches[0].clientY); }, { passive: false });
-  handle.addEventListener('touchend', onDragEnd);
+  // Touch — attach move/end to document (like mouse) so drag works even if finger leaves handle
+  handle.addEventListener('touchstart', e => {
+    onDragStart(e.touches[0].clientY);
+    const onTouchMove = ev => { ev.preventDefault(); onDragMove(ev.touches[0].clientY); };
+    const onTouchEnd = () => { onDragEnd(); document.removeEventListener('touchmove', onTouchMove); document.removeEventListener('touchend', onTouchEnd); };
+    document.addEventListener('touchmove', onTouchMove, { passive: false });
+    document.addEventListener('touchend', onTouchEnd);
+  }, { passive: true });
 
   // Mouse
   handle.addEventListener('mousedown', e => {
