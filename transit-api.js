@@ -76,17 +76,23 @@ const TransitAPI = (function () {
    */
   async function fetchVehiclesForRoute(routeId) {
     try {
-      const j = await _get(`/vehicles-for-route/${routeId}.json`);
-      return (j.data.list || []).map(v => ({
-        vehicleId: v.vehicleId,
-        lat: v.location?.lat || 0,
-        lon: v.location?.lon || 0,
-        tripHeadsign: v.tripStatus?.headsign || '',
-        distanceAlongTrip: v.tripStatus?.distanceAlongTrip || 0,
-      }));
+      const j = await _get(`/trips-for-route/${routeId}.json?includeStatus=true`);
+      const tripRefs = {};
+      (j.data.references?.trips || []).forEach(t => { tripRefs[t.id] = t; });
+      return (j.data.list || []).filter(t => t.status && t.status.position).map(t => {
+        const tripId = t.tripId || t.status.activeTripId;
+        const ref = tripRefs[tripId] || {};
+        return {
+          vehicleId: t.status.vehicleId || '',
+          lat: t.status.position.lat || 0,
+          lon: t.status.position.lon || 0,
+          tripHeadsign: ref.tripHeadsign || '',
+          directionId: ref.directionId || '',
+          distanceAlongTrip: t.status.distanceAlongTrip || 0,
+        };
+      });
     } catch (e) {
-      if (e.status === 404) return []; // route doesn't support vehicle tracking
-      throw e;
+      return [];
     }
   }
 

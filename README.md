@@ -1,52 +1,54 @@
-# NextUp Transit — Dev Setup
+# NextUp Transit
 
-## Start the local server
+Real-time transit departures for Seattle. See when your bus or train is coming — live ETAs, route maps, and vehicle positions.
 
-```bash
-cd projects/transit-widget/Main
-node server.js
-```
+**[Open App →](https://alvinhx.github.io)**
 
-Server runs on **http://localhost:8080**
+---
 
-## Pages
+## What's New in v6.3
 
-| URL | Description |
+### 🗺️ Route Detail Map
+Tap any route card to see a full interactive map showing:
+- Your route's shape with upcoming and passed segments
+- Your GPS position and nearest stop
+- All stops along the route with a visual timeline
+
+### 🚌 Live Vehicle Positions
+See where buses and trains are right now on the map. Vehicle positions update every 20 seconds.
+
+### 📍 Smart Zoom
+The map automatically zooms to show your location and the next few stops ahead — no manual zooming needed.
+
+### 🎨 Redesigned Detail Panel
+- Route info card with tonal M3 color scheme
+- Stop list with colored vertical spine (passed = grey, upcoming = route color)
+- Direction name and next departure info in the sheet header
+
+---
+
+## Features
+
+- **Live ETAs** — real-time departure times from OneBusAway
+- **Schedule fallback** — shows scheduled times when live data isn't available
+- **Pin routes** — long-press to pin your most-used routes to the top
+- **Custom locations** — add any transit stop using GPS
+- **Home station** — set a default location that loads on launch
+- **Dark/Light/Auto theme** — follows your system preference
+- **Works offline** — cached schedule data loads instantly
+
+## Supported Transit
+
+| Agency | Modes |
 |---|---|
-| http://localhost:8080/home.html | Main transit app |
-| http://localhost:8080/route-config.html | Route data admin (inspect, re-fetch, edit) |
+| King County Metro | Bus, RapidRide |
+| Sound Transit | Link Light Rail (1 & 2 Line), ST Express |
+| Community Transit | Local bus, Swift BRT |
+| Seattle Streetcar | First Hill, South Lake Union |
 
-## What the server does
+## Stations
 
-- Serves all static files (HTML, JS, CSS, JSON)
-- API: `GET /api/routes-data` — read route data
-- API: `POST /api/routes-data` — write full route data
-- API: `PATCH /api/routes-data/:routeId` — update one route
-- API: `GET /api/gtfs/shape/:agencyId/:routeId/:directionId` — fetch shape from GTFS (uses parsers)
-- API: `POST /api/gtfs/refresh/:agencyId` — force re-download GTFS feed
-
-## Deploy to production
-
-The main app is fully static — no server needed. Upload these files to any static host:
-
-```
-home.html
-style.css
-home.js
-route-detail.js
-transit-api.js
-transit-store.js
-transit-logic.js
-app-state.js
-routes-data.json
-stations/seattle.json
-```
-
-The route-config page and server.js are dev tools only — don't deploy them.
-
-## Re-fetch route shapes
-
-1. Start the server
-2. Open http://localhost:8080/route-config.html
-3. Click "Re-fetch All" or select a route and click "Re-fetch Selected"
-4. Shapes are fetched from official GTFS feeds (KC Metro, Sound Transit) using the parser system
+- Capitol Hill
+- Lynnwood City Center
+- Denny & Westlake
+- + Custom locations via GPS

@@ -452,68 +452,13 @@ function _initSheetDrag() {
   if (!sheet) return;
 
   const vh = (typeof AppState !== 'undefined') ? AppState.screenH : window.innerHeight;
-  const snapCollapsed = 120;
-  const snapMid = Math.round(vh * 0.45);
-  // Cap expanded height so sheet never overlaps the badge card overlay.
-  // Measure the badge card's actual rendered height at runtime — works on any screen size.
-  const badgeCard = document.querySelector('.detail-route-badge-card');
-  const badgeBottom = badgeCard
-    ? badgeCard.getBoundingClientRect().bottom + 12  // 12px gap below the card
-    : 180;  // fallback if element not found
-  const snapExpanded = vh - badgeBottom;
+  const sheetH = Math.round(vh * 0.5);
 
-  // Start at mid
-  _sheetCurrentH = snapMid;
-  sheet.style.height = snapMid + 'px';
+  _sheetCurrentH = sheetH;
+  sheet.style.height = sheetH + 'px';
   _updateMapHeight();
 
-  const handle = document.getElementById('detail-drag-handle');
-  if (!handle) return;
-
-  function onDragStart(clientY) {
-    _sheetDragStartY = clientY;
-    _sheetDragStartH = sheet.offsetHeight;
-    sheet.style.transition = 'none';
-  }
-
-  function onDragMove(clientY) {
-    const delta = _sheetDragStartY - clientY;
-    const newH = Math.max(snapCollapsed, Math.min(snapExpanded, _sheetDragStartH + delta));
-    sheet.style.transition = 'none';
-    sheet.style.height = newH + 'px';
-    _sheetCurrentH = newH;
-    _updateMapHeight();
-    if (_detailMap) _detailMap.invalidateSize({ animate: false });
-  }
-
-  function onDragEnd() {
-    sheet.style.transition = 'height 0.3s cubic-bezier(0.32, 0.72, 0, 1)';
-    // Snap to nearest point
-    const snaps = [snapCollapsed, snapMid, snapExpanded];
-    const nearest = snaps.reduce((a, b) => Math.abs(b - _sheetCurrentH) < Math.abs(a - _sheetCurrentH) ? b : a);
-    sheet.style.height = nearest + 'px';
-    _sheetCurrentH = nearest;
-    // Refit map to account for new sheet height
-    setTimeout(_refitMapToSheet, 320);
-  }
-
-  // Touch — attach move/end to document (like mouse) so drag works even if finger leaves handle
-  handle.addEventListener('touchstart', e => {
-    onDragStart(e.touches[0].clientY);
-    const onTouchMove = ev => { ev.preventDefault(); onDragMove(ev.touches[0].clientY); };
-    const onTouchEnd = () => { onDragEnd(); document.removeEventListener('touchmove', onTouchMove); document.removeEventListener('touchend', onTouchEnd); };
-    document.addEventListener('touchmove', onTouchMove, { passive: false });
-    document.addEventListener('touchend', onTouchEnd);
-  }, { passive: true });
-
-  // Mouse
-  handle.addEventListener('mousedown', e => {
-    onDragStart(e.clientY);
-    const onMove = ev => onDragMove(ev.clientY);
-    const onUp = () => { onDragEnd(); document.removeEventListener('mousemove', onMove); document.removeEventListener('mouseup', onUp); };
-    document.addEventListener('mousemove', onMove);
-    document.addEventListener('mouseup', onUp);
-  });
+  // No drag — fixed at 50% for now
 }
 
 // Route line + stop dot style constants are declared at the top of this file.
@@ -528,21 +473,29 @@ function _updateVehicleMarkers(vehicles) {
   _detailVehicleMarkers.forEach(m => _detailMap.removeLayer(m));
   _detailVehicleMarkers = [];
 
+  // Filter vehicles by directionId — only show ones matching the displayed direction
+  const currentDirId = _detailDirection ? _detailDirection.directionId : null;
+
   vehicles.forEach(v => {
     if (!v.lat && !v.lon) return;
 
+    // Filter by directionId if available
+    if (currentDirId !== null && currentDirId !== undefined && v.directionId !== undefined) {
+      if (String(v.directionId) !== String(currentDirId)) return;
+    }
+
     const mode = _detailRouteData ? _detailRouteData.mode : 'bus';
-    const iconGlyph = (mode === 'rail') ? '🚇' : (mode === 'streetcar') ? '🚋' : '🚌';
+    const iconName = (mode === 'rail') ? 'train' : (mode === 'streetcar') ? 'tram' : 'directions_bus';
     const { upcoming: upcomingColor } = _getRouteColors();
 
     const icon = L.divIcon({
       className: '',
-      html: `<div style="width:36px;height:36px;border-radius:50%;background:#fff;border:3px solid ${upcomingColor};display:flex;align-items:center;justify-content:center;font-size:16px;line-height:1;box-shadow:0 2px 6px rgba(0,0,0,0.25)">${iconGlyph}</div>`,
-      iconSize: [36, 36],
-      iconAnchor: [18, 18],
+      html: `<div style="width:32px;height:32px;border-radius:50%;background:#fff;border:2px solid ${upcomingColor};display:flex;align-items:center;justify-content:center;box-shadow:0 2px 8px rgba(0,0,0,0.2)"><span class="material-icons" style="font-size:18px;color:${upcomingColor}">${iconName}</span></div>`,
+      iconSize: [32, 32],
+      iconAnchor: [16, 16],
     });
 
-    const marker = L.marker([v.lat, v.lon], { icon }).addTo(_detailMap);
+    const marker = L.marker([v.lat, v.lon], { icon, zIndexOffset: 1000 }).addTo(_detailMap);
     marker.bindPopup(`<b>${v.tripHeadsign || 'In service'}</b>`);
     _detailVehicleMarkers.push(marker);
   });
@@ -844,14 +797,14 @@ function _drawUpcomingOverlay() {
 
     let fillColor, strokeColor, radius, strokeWeight;
     if (isCurrent) {
-      // Current stop: white fill with colored ring — stands out
-      fillColor = '#ffffff'; strokeColor = upcomingColor; radius = 5; strokeWeight = 3;
+      // Current/nearest stop: larger, white fill with colored ring
+      fillColor = '#ffffff'; strokeColor = upcomingColor; radius = 6; strokeWeight = 3;
     } else if (isPassed) {
-      // Passed: small white dot inside the line
-      fillColor = '#ffffff'; strokeColor = baseColor; radius = 3; strokeWeight = 0;
+      // Passed: white dot with base color border
+      fillColor = '#ffffff'; strokeColor = baseColor; radius = 3; strokeWeight = 2;
     } else {
-      // Upcoming: small white dot inside the line
-      fillColor = '#ffffff'; strokeColor = upcomingColor; radius = 3; strokeWeight = 0;
+      // Upcoming: white dot with upcoming color border
+      fillColor = '#ffffff'; strokeColor = upcomingColor; radius = 3; strokeWeight = 2;
     }
 
     const m = L.circleMarker([stop.lat, stop.lon], {
@@ -860,6 +813,18 @@ function _drawUpcomingOverlay() {
     m.bindPopup(`<b>${stop.name}</b>`);
     _detailStopMarkers.push(m);
   });
+
+  // Draw dashed blue line from GPS dot to nearest stop
+  const lat = _getUserLat(), lon = _getUserLon();
+  if (lat !== null && _detailNearestStopId) {
+    const nearestStop = _detailAllStops.find(s => s.stopId === _detailNearestStopId);
+    if (nearestStop && nearestStop.lat) {
+      const dashedLine = L.polyline([[lat, lon], [nearestStop.lat, nearestStop.lon]], {
+        color: '#3B82F6', weight: 2, opacity: 0.7, dashArray: '6,6'
+      }).addTo(_detailMap);
+      _detailStopMarkers.push(dashedLine); // track for cleanup
+    }
+  }
 }
 
 /**
