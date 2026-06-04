@@ -20,6 +20,8 @@ const CLASSIFY_RULES = {
     if(type===3&&(shortName||"").match(/^Swift/i))return{mode:"swift",tag:shortName,badge:"square",isSwift:true};
     if(type===3&&(shortName||"").match(/Line$/i))return{mode:"rapid",tag:"RapidRide",badge:"square"};
     if(agencyId==="29")return{mode:"bus",tag:"Community Transit",badge:"square"};
+    // Named bus routes (non-numeric shortName) — shuttles, specials, seasonal services
+    if(type===3&&shortName&&!/^\d+$/.test(shortName.trim()))return{mode:"shuttle",tag:"KC Shuttle",badge:"square"};
     return{mode:"bus",tag:"KC Bus",badge:"square"};
   }
 };
@@ -27,6 +29,14 @@ const CLASSIFY_RULES = {
 // ===== STATION CONFIG =====
 // Loaded from stations/{city}.json — do not hardcode station data here.
 // To add a city: create stations/{city}.json and add classify rules above.
+
+// Brand color overrides — maps old API colors to updated brand colors
+// OBA returns GTFS route_color which may be outdated; these ensure correct M3 tonal palette matching
+const COLOR_OVERRIDES = {
+  "#28813F": "#3DAE2B",  // 1 Line: old green → Sound Transit brand green
+  "#007CAD": "#00A0DF",  // 2 Line: old blue → Sound Transit brand blue
+};
+function overrideColor(c) { return COLOR_OVERRIDES[c] || c; }
 
 let STATIONS = {};
 let _cityConfig = null;
@@ -598,7 +608,7 @@ async function fetchStop(id){
       routeId:a.routeId,
       headsign:a.tripHeadsign||rt.longName||"",
       ms:live?pred:sched,live,
-      color:rt.color?`#${rt.color}`:"#666",
+      color:overrideColor(rt.color?`#${rt.color}`:"#666"),
       textColor:rt.textColor?`#${rt.textColor}`:"#fff",
       ...cls,
     };
@@ -695,8 +705,75 @@ function renderFromCache(){
   const sorted=Object.values(routeCache).sort(prioritySort);
   cache.length=0;cache.push(...sorted);
   const el=document.getElementById("results");
-  el.innerHTML=cache.map(renderCard).join("");
-  attachLongPress();
+
+  // Check if card order changed — if not, only update ETA pills (preserves CSS animations)
+  const newKeys = cache.map(g => g.route+"|"+g.headsign+"|"+g.mode);
+  const existingCards = el.querySelectorAll(".card[data-key]");
+  const oldKeys = Array.from(existingCards).map(c => c.dataset.key);
+
+  if (newKeys.length === oldKeys.length && newKeys.every((k, i) => k === oldKeys[i])) {
+    // Same order — just update ETA pills in place (no DOM rebuild, preserves animations)
+    existingCards.forEach((card, i) => {
+      const g = cache[i];
+      if (!g) return;
+      const etasEl = card.querySelector('.etas');
+      if (etasEl) {
+        const newPills = _renderPillsForCard(g);
+        if (etasEl.innerHTML !== newPills) {
+          etasEl.innerHTML = newPills;
+        }
+      }
+    });
+  } else {
+    // Order changed — FLIP animate the transition
+    // Record old positions before rebuild
+    const oldPositions = {};
+    existingCards.forEach(c => {
+      const key = c.dataset.key;
+      if (key) oldPositions[key] = c.getBoundingClientRect();
+    });
+    // Rebuild DOM
+    el.innerHTML = cache.map(renderCard).join("");
+    attachLongPress();
+    // Animate cards that moved position (FLIP)
+    if (Object.keys(oldPositions).length > 0) {
+      el.querySelectorAll(".card[data-key]").forEach(c => {
+        const key = c.dataset.key;
+        if (!key || !oldPositions[key]) return;
+        const oldRect = oldPositions[key];
+        const newRect = c.getBoundingClientRect();
+        const dx = oldRect.left - newRect.left;
+        const dy = oldRect.top - newRect.top;
+        if (Math.abs(dx) < 1 && Math.abs(dy) < 1) return;
+        c.style.transition = "none";
+        c.style.transform = `translate(${dx}px,${dy}px)`;
+        requestAnimationFrame(() => {
+          requestAnimationFrame(() => {
+            c.style.transition = "transform 0.4s ease";
+            c.style.transform = "";
+          });
+        });
+      });
+    }
+  }
+}
+
+// Helper: render just the pills HTML for a card (extracted from renderCard)
+function _renderPillsForCard(g) {
+  if(g.nextDayTimes){
+    return `<div class="next-day-times"><span>${formatTime(g.nextDayTimes[0])}</span></div>`;
+  } else if(g.etas.length){
+    var nearestMin=Math.round((g.etas[0].ms-Date.now())/60000);
+    if(nearestMin>90){
+      return `<div class="next-day-times"><span>${formatTime(g.etas[0].ms)}</span></div>`;
+    } else {
+      var relevantEtas=g.etas.filter(function(eta){return Math.round((eta.ms-Date.now())/60000)<=90;});
+      if(!relevantEtas.length) relevantEtas=[g.etas[0]];
+      return relevantEtas.map((eta,i)=>renderPill(eta,i)).join("");
+    }
+  } else {
+    return `<div class="pill sched"><span class="pill-num" style="font-size:18px;color:var(--dim)">···</span></div>`;
+  }
 }
 
 function etaText(ms){const m=Math.round((ms-Date.now())/60000);return m<=0?"NOW":`${m}`;}
@@ -745,11 +822,11 @@ function renderPill(eta,idx){
 }
 
 function renderCard(g){
-  const isIcon=g.badge==="square"&&(g.mode==="streetcar"||g.mode==="monorail"||g.mode==="swift");
-  const numClass=g.route.length>2?"sm":"";
+  const isIcon=g.badge==="square"&&(g.mode==="streetcar"||g.mode==="monorail"||g.mode==="swift"||g.mode==="shuttle");
+  const numClass=g.route.length>4?"xs":g.route.length>2?"sm":"";
   const isRail=g.mode==="rail";
   const badgeInner=isIcon
-    ?`<span class="badge-icon">${g.mode==="monorail"?"train":g.mode==="swift"?"directions_bus":"tram"}</span>`
+    ?`<span class="badge-icon">${g.mode==="monorail"?"train":(g.mode==="swift"||g.mode==="shuttle")?"directions_bus":"tram"}</span>`
     :`<span class="badge-num ${numClass}" style="color:${g.textColor}">${g.route}</span>${isRail?'<span class="badge-sub">LINE</span>':''}`;
   // If nextDayTimes set, or if nearest ETA is >90 min away, show as clock time
   // Filter out individual ETAs >90 min when there are closer ones
@@ -979,7 +1056,7 @@ async function update(){
   document.getElementById("dot").classList.remove("error");
 }
 
-var _suppressRender = false; // unused — kept for compatibility
+var _suppressRender = false;
 
 function animatedUpdate(){
   // Skip animation if detail panel is open — prevents cards from flipping while user is in detail view
@@ -994,8 +1071,12 @@ function animatedUpdate(){
     const key=c.dataset.key;
     if(key)oldCards[key]=c.getBoundingClientRect();
   });
-  // Run update — progressive renders happen normally during update
+  // Suppress intermediate renders — we'll do one final render after update completes
+  _suppressRender = true;
   update().then(()=>{
+    _suppressRender = false;
+    // Do the final render once
+    renderFromCache();
     // FLIP: animate cards that moved position
     el.querySelectorAll(".card").forEach(c=>{
       const key=c.dataset.key;
@@ -1074,7 +1155,7 @@ async function fetchAndCacheSchedule(now,gen){
           route:route,
           headsign:headsign,
           dirIndex:di,
-          color:rt.color?`#${rt.color}`:"#666",
+          color:overrideColor(rt.color?`#${rt.color}`:"#666"),
           textColor:rt.textColor?`#${rt.textColor}`:"#fff",
           ...cls,
           scheduleTimes:allTimes,
@@ -1283,14 +1364,62 @@ document.addEventListener("click",e=>{if(!e.target.closest(".station"))document.
 document.getElementById("creationModal").addEventListener("click",function(e){
   if(e.target===this) closeCreationModal();
 });
-// Onboarding
+// Onboarding / What's New — version-gated
+const APP_VERSION = "6.3";
+const RELEASE_NOTES = [
+  {
+    version: "6.3",
+    title: "What's New ✨",
+    sub: "v6.3 updates",
+    tips: [
+      { icon: "🗺️", title: "Route detail map", desc: "Tap any card to see route shape, stops, and your position on a live map." },
+      { icon: "💚", title: "Heartbeat NOW pill", desc: "NOW indicator pulses with a heartbeat rhythm synced to live data updates." },
+      { icon: "🚌", title: "Shuttle routes", desc: "Trailhead Direct and seasonal shuttles now display correctly with bus icon badges." }
+    ]
+  },
+  {
+    version: "6.0",
+    title: "Welcome to NextUp 👋",
+    sub: "Quick tips to get started",
+    tips: [
+      { icon: "📌", title: "Pin your routes", desc: "Long-press any card to pin it to the top. Pinned routes stay first." },
+      { icon: "📍", title: "Add locations", desc: "Tap the station name to add custom locations near you." },
+      { icon: "🏠", title: "Set a home", desc: "Tap the house icon to set your default launch location." }
+    ]
+  }
+];
+
+function showWhatsNew() {
+  const lastSeen = localStorage.getItem("nextup_last_seen_version") || "0";
+  // Find the latest release note newer than what the user has seen
+  const note = RELEASE_NOTES.find(n => n.version > lastSeen);
+  if (!note) return;
+  // Render the modal content
+  const card = document.getElementById("onboardCard");
+  card.innerHTML = `
+    <div class="onboard-title">${note.title}</div>
+    <div class="onboard-sub">${note.sub}</div>
+    <div class="onboard-tips">
+      ${note.tips.map(t => `
+        <div class="onboard-tip">
+          <div class="onboard-icon">${t.icon}</div>
+          <div class="onboard-tip-text">
+            <div class="onboard-tip-title">${t.title}</div>
+            <div class="onboard-tip-desc">${t.desc}</div>
+          </div>
+        </div>
+      `).join("")}
+    </div>
+    <button class="onboard-btn" onclick="dismissOnboard()">Got it</button>
+  `;
+  document.getElementById("onboardModal").style.display = "flex";
+}
+
 function dismissOnboard(){
   document.getElementById("onboardModal").style.display="none";
-  localStorage.setItem("nextup_onboarded","1");
+  localStorage.setItem("nextup_last_seen_version", APP_VERSION);
 }
-if(!localStorage.getItem("nextup_onboarded")){
-  document.getElementById("onboardModal").style.display="flex";
-}
+showWhatsNew();
 function toggleTheme(){
   // Cycle: Auto → Light → Dark → Auto
   var saved=localStorage.getItem("nextup_theme");
