@@ -954,8 +954,10 @@ function attachLongPress(){
     },{passive:true});
     card.addEventListener("touchcancel",cancelPress);
     card.addEventListener("mousedown",startPress);
+    card.addEventListener("mouseup",endPress);
     card.addEventListener("mouseleave",cancelPress);
     card.addEventListener("click",function(){
+      clearTimeout(_lpTimer);
       if(_lpFired) return;
       if(_touchHandled) return;
       var key=card.getAttribute("data-key");
@@ -1365,7 +1367,7 @@ document.getElementById("creationModal").addEventListener("click",function(e){
   if(e.target===this) closeCreationModal();
 });
 // Onboarding / What's New — version-gated
-const APP_VERSION = "6.3";
+const APP_VERSION = "6.3.1";
 const RELEASE_NOTES = [
   {
     version: "6.3",
