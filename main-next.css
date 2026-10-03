@@ -1,0 +1,451 @@
+/* main-next.css — styles for the template-first rebuild.
+
+   base.css is main-next's OWN copy of the foundation (theme tokens, keyframes,
+   and the legacy card/badge/pill/tag classes), forked verbatim from Main's
+   style.css so main-next no longer depends on the sibling Main/ folder — the
+   whole point of the main-next port: it can be switched in as a self-contained
+   unit. As the atomic design system lands (lib/ui/*), each atom moves its rules
+   OUT of base.css into its own co-located CSS, and base.css shrinks toward just
+   app-level chrome. Template-specific classes here are prefixed ms- (Map+Sheet),
+   lp- (List page), dp- (detail page), hm- (home), mt- (mode toggle), sp- (picker). */
+
+@import url("base.css");
+/* design-system atoms own their CSS (co-located with their JS in lib/ui/). As
+   each atom lands, its rules move OUT of base.css into these files. */
+@import url("lib/ui/route-badge.css");
+@import url("lib/ui/route-tag.css");
+@import url("lib/ui/eta-pill.css");
+
+/* ── Map + Sheet template ─────────────────────────────────────────────────── */
+.ms-page {
+  position: fixed;
+  inset: 0;
+  overflow: hidden;
+  background: var(--bg, #0d0d0f);
+  opacity: 0;
+  transition: opacity 0.25s ease;
+  z-index: 500;
+}
+.ms-page.ms-open { opacity: 1; }
+
+/* z0 — map: fixed, full viewport, NEVER resized after framing */
+.ms-map {
+  position: absolute;
+  top: 0;
+  left: 0;
+  /* width/height set inline in JS from screen size (explicit px for Leaflet) */
+  z-index: 0;
+}
+
+/* z1 — controls overlay: floats over the map, does not capture map drags except on its own children */
+.ms-overlay {
+  position: absolute;
+  inset: 0;
+  z-index: 1;
+  pointer-events: none;
+}
+.ms-overlay > * { pointer-events: auto; }
+
+/* z2 — bottom sheet: overlays the map, height animates on snap (map untouched) */
+.ms-sheet {
+  position: absolute;
+  left: 0;
+  right: 0;
+  bottom: 0;
+  z-index: 2;
+  display: flex;
+  flex-direction: column;
+  background: var(--surface, #17171b);
+  border-top-left-radius: 20px;
+  border-top-right-radius: 20px;
+  /* height set inline in JS from the current drag/snap fraction */
+  overflow: hidden;
+}
+.ms-sheet-handle {
+  flex: 0 0 auto;
+  height: 24px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  cursor: grab;
+  touch-action: none; /* let JS own the vertical drag gesture */
+}
+.ms-sheet-handle::before {
+  content: "";
+  width: 40px;
+  height: 4px;
+  border-radius: 2px;
+  background: var(--dim, #7a7a85);
+  opacity: 0.5;
+}
+.ms-sheet-handle:active { cursor: grabbing; }
+.ms-sheet-header { flex: 0 0 auto; padding: 4px 16px 8px; }
+.ms-sheet-body {
+  flex: 1 1 auto;
+  overflow-y: auto;
+  -webkit-overflow-scrolling: touch;
+  padding: 0 16px 16px;
+}
+
+/* ── Detail page (consumer of the template) ───────────────────────────────── */
+.dp-overlay-top {
+  position: absolute;
+  top: 0;
+  left: 0;
+  right: 0;
+  display: flex;
+  align-items: flex-start;
+  justify-content: space-between;
+  padding: calc(env(safe-area-inset-top, 0px) + 12px) 12px 0;
+  gap: 12px;
+}
+.dp-badge-card {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  padding: 8px 14px 8px 8px;
+  border-radius: 16px;
+  box-shadow: 0 2px 8px rgba(0, 0, 0, 0.25);
+}
+/* .dp-badge-circle/.dp-badge-num/.dp-badge-sub/.dp-badge-icon removed — the
+   detail badge is now the RouteBadge atom (size:'detail' → .badge.badge--detail,
+   styled in lib/ui/route-badge.css). .dp-badge-card/.dp-badge-info/.dp-badge-dir
+   below stay: they're the detail header LAYOUT, not the badge itself. */
+.dp-badge-info { display: flex; flex-direction: column; gap: 2px; min-width: 0; }
+/* .dp-badge-tag moved to lib/ui/route-tag.css (RouteTag atom, detail size) */
+.dp-badge-dir { font-size: 14px; font-weight: 600; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; max-width: 180px; }
+
+.dp-actions { display: flex; flex-direction: column; gap: 8px; align-items: flex-end; }
+.dp-btn {
+  width: 40px;
+  height: 40px;
+  border-radius: 50%;
+  border: none;
+  background: var(--surface, #17171b);
+  color: var(--text, #f0f0f2);
+  box-shadow: 0 2px 8px rgba(0, 0, 0, 0.25);
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  cursor: pointer;
+}
+.dp-btn.hidden { display: none; }
+
+/* ETAs row in the sheet header */
+.dp-etas-row { display: flex; align-items: center; justify-content: space-between; gap: 12px; }
+.dp-etas-info { min-width: 0; }
+.dp-dir-label { font-size: 15px; font-weight: 700; color: var(--text, #f0f0f2); white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+.dp-stop-label { font-size: 12px; color: var(--dim, #7a7a85); margin-top: 2px; }
+.dp-etas-pills { display: flex; gap: 6px; flex: 0 0 auto; }
+/* .dp-pill* (detail ETA pill) moved to lib/ui/eta-pill.css (EtaPill atom, detail size) */
+
+.dp-divider { height: 1px; background: var(--border, rgba(255, 255, 255, 0.08)); margin: 10px 0; }
+.dp-stops-wrap { }
+.dp-loading, .dp-error { color: var(--dim, #7a7a85); font-size: 14px; padding: 12px 0; }
+
+/* ── List page template ───────────────────────────────────────────────────── */
+.lp-page {
+  position: fixed;
+  inset: 0;
+  z-index: 600; /* above the Map+Sheet page (500) */
+  display: flex;
+  flex-direction: column;
+  background: var(--bg, #0d0d0f);
+  transform: translateX(100%);
+  transition: transform 0.26s ease;
+}
+.lp-page.lp-open { transform: translateX(0); }
+
+.lp-header {
+  flex: 0 0 auto;
+  display: flex;
+  align-items: flex-start;
+  gap: 10px;
+  padding: calc(env(safe-area-inset-top, 0px) + 14px) 16px 12px;
+  background: var(--surface, #17171b);
+  border-bottom: 1px solid var(--border, rgba(255, 255, 255, 0.08));
+}
+.lp-back {
+  flex: 0 0 auto;
+  width: 36px;
+  height: 36px;
+  border: none;
+  border-radius: 50%;
+  background: transparent;
+  color: var(--text, #f0f0f2);
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  cursor: pointer;
+}
+.lp-back:hover { background: var(--surface-hover, rgba(255, 255, 255, 0.06)); }
+.lp-title-wrap { flex: 1 1 auto; min-width: 0; padding-top: 4px; }
+.lp-title { font-size: 18px; font-weight: 700; color: var(--text, #f0f0f2); }
+.lp-subtitle { font-size: 13px; color: var(--dim, #7a7a85); margin-top: 2px; }
+.lp-actions { flex: 0 0 auto; display: flex; gap: 8px; align-items: center; }
+
+.lp-body {
+  flex: 1 1 auto;
+  overflow-y: auto;
+  -webkit-overflow-scrolling: touch;
+  padding: 8px 16px 24px;
+}
+.lp-section-title {
+  font-size: 11px;
+  font-weight: 700;
+  text-transform: uppercase;
+  letter-spacing: 0.5px;
+  color: var(--dim, #7a7a85);
+  padding: 14px 0 6px;
+}
+.lp-item { padding: 12px 0; border-bottom: 1px solid var(--border, rgba(255, 255, 255, 0.08)); }
+.lp-item:last-child { border-bottom: none; }
+.lp-empty { padding: 40px 8px; text-align: center; color: var(--dim, #7a7a85); font-size: 14px; }
+
+/* ── ROOT variant: a tab destination, not a drill-down ────────────────────────
+   Sits at the page layer (same z as the Map+Sheet page) instead of above it, and
+   never animates in — it isn't arriving from anywhere. */
+.lp-page.lp-root {
+  z-index: 500;
+  transform: none;
+  transition: none;
+}
+.lp-page.lp-root.lp-open { transform: none; }
+
+/* Tappable title (station switcher). Looks like the title, behaves like a button. */
+.lp-title-btn {
+  display: flex;
+  align-items: center;
+  gap: 4px;
+  background: none;
+  border: none;
+  padding: 0;
+  margin: 0;
+  color: inherit;
+  font: inherit;
+  cursor: pointer;
+  text-align: left;
+  max-width: 100%;
+}
+.lp-title-btn .lp-title {
+  font-size: 28px;              /* station name is the page's headline */
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+.lp-title-chev { font-size: 24px; color: var(--dim, #7a7a85); flex: 0 0 auto; }
+.lp-title-btn:hover .lp-title-chev { color: var(--text, #f0f0f2); }
+
+/* Card list inside a list page: last card must clear the floating mode toggle. */
+.lp-body.hm-cards { padding-bottom: 96px; }
+
+/* ── Alert rows (consumer of the List template) ───────────────────────────── */
+.al-row { display: flex; gap: 12px; align-items: flex-start; }
+.al-icon { flex: 0 0 auto; width: 32px; height: 32px; border-radius: 50%; display: flex; align-items: center; justify-content: center; }
+.al-icon .material-icons { font-size: 18px; }
+.al-main { flex: 1 1 auto; min-width: 0; }
+.al-summary { font-size: 15px; font-weight: 600; color: var(--text, #f0f0f2); line-height: 1.35; }
+.al-desc { font-size: 13px; color: var(--dim, #7a7a85); margin-top: 6px; line-height: 1.45; white-space: pre-wrap; }
+.al-meta { display: flex; flex-wrap: wrap; gap: 8px; align-items: center; margin-top: 8px; }
+.al-tag {
+  font-size: 10px;
+  font-weight: 700;
+  text-transform: uppercase;
+  letter-spacing: 0.4px;
+  padding: 3px 8px;
+  border-radius: 8px;
+  background: var(--surface-hover, rgba(255, 255, 255, 0.08));
+  color: var(--dim, #7a7a85);
+}
+.al-link { font-size: 13px; color: var(--accent, #4da3ff); text-decoration: none; }
+.al-link:hover { text-decoration: underline; }
+.al-toggle { background: none; border: none; color: var(--accent, #4da3ff); font-size: 13px; padding: 0; cursor: pointer; font-family: inherit; }
+
+/* Alert badge on the detail page overlay */
+.dp-btn.dp-alert { position: relative; }
+.dp-alert-count {
+  position: absolute;
+  top: -2px;
+  right: -2px;
+  min-width: 16px;
+  height: 16px;
+  border-radius: 8px;
+  background: var(--warning, #f5a623);
+  color: #1a1a1a;
+  font-size: 10px;
+  font-weight: 700;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  padding: 0 4px;
+}
+
+/* ── Home page (second Map+Sheet consumer) ────────────────────────────────── */
+/* Transit cards reuse Main's card styles (.card/.badge/.info/.tag/.dest/.etas/
+   .pill*) via the @import at the top of this file, so no card CSS is needed here
+   — only the list wrapper. */
+/* Card list. Main/ uses gap:12px in .results; we run a little tighter here since
+   the sheet is a shorter viewport than the full-page board. */
+.hm-cards { display: flex; flex-direction: column; gap: 8px; }
+
+/* ── Mode toggle — floating segmented pill, bottom-right ─────────────────────
+   z550 is deliberate: ABOVE the page layer (500) and the Map+Sheet's own sheet
+   (which is z2 inside that page, so a control in the page's z1 overlay would be
+   hidden behind it), but BELOW pushed pages like the alert list (600), which
+   should cover the toggle rather than sit under it.
+
+   It floats rather than occupying layout height so the detail page's phase-3 map
+   framing — which is measured against viewport height — needs no changes. */
+.mt-toggle {
+  position: fixed;
+  right: 16px;
+  bottom: calc(env(safe-area-inset-bottom, 0px) + 20px);
+  z-index: 550;
+  display: flex;
+  align-items: center;
+  gap: 2px;
+  padding: 4px;
+  border-radius: 999px;
+  background: var(--surface, #17171b);
+  border: 1px solid var(--border, rgba(255, 255, 255, 0.10));
+  box-shadow: 0 6px 20px rgba(0, 0, 0, 0.35);
+  transition: opacity 0.18s ease, transform 0.18s ease;
+}
+.mt-toggle.mt-hidden {
+  opacity: 0;
+  transform: translateY(8px);
+  pointer-events: none;
+}
+.mt-seg {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  border: none;
+  border-radius: 999px;
+  padding: 8px 14px;
+  background: transparent;
+  color: var(--dim, #7a7a85);
+  font-family: inherit;
+  font-size: 13px;
+  font-weight: 600;
+  cursor: pointer;
+  white-space: nowrap;
+  transition: background 0.18s ease, color 0.18s ease;
+}
+.mt-seg:hover { color: var(--text, #f0f0f2); }
+.mt-seg.is-active {
+  background: var(--accent, #3B82F6);
+  color: #fff;
+}
+.mt-ico { font-size: 18px; }
+
+/* Narrow screens: icons only, so the pill stays out of the way. */
+@media (max-width: 430px) {
+  .mt-seg { padding: 9px 12px; }
+  .mt-seg .mt-label { display: none; }
+  .mt-seg.is-active .mt-label { display: inline; }
+}
+
+/* ── Station picker ──────────────────────────────────────────────────────────
+   Rows are <button>s so they're keyboard-reachable; the list page's default
+   .lp-item wrapper is skipped (itemClass:'') because these rows own their own
+   padding and hit area. */
+.sp-row {
+  display: flex;
+  align-items: center;
+  gap: 12px;
+  width: 100%;
+  padding: 14px 12px;
+  border: none;
+  border-radius: 12px;
+  background: transparent;
+  color: var(--text, #f0f0f2);
+  font-family: inherit;
+  text-align: left;
+  cursor: pointer;
+  position: relative;
+}
+.sp-row:hover { background: var(--surface-hover, rgba(255, 255, 255, 0.06)); }
+.sp-row.is-current { background: var(--surface-hover, rgba(255, 255, 255, 0.06)); }
+.sp-row-ico { font-size: 22px; color: var(--dim, #7a7a85); flex: 0 0 auto; }
+.sp-row.is-current .sp-row-ico { color: var(--accent, #3B82F6); }
+.sp-row-main { flex: 1 1 auto; min-width: 0; display: flex; flex-direction: column; gap: 2px; }
+.sp-row-name {
+  font-size: 17px; font-weight: 600;
+  overflow: hidden; text-overflow: ellipsis; white-space: nowrap;
+}
+.sp-row-meta { font-size: 12px; color: var(--dim, #7a7a85); }
+.sp-row-check { font-size: 20px; color: var(--accent, #3B82F6); flex: 0 0 auto; }
+.sp-row-del {
+  font-size: 18px; color: var(--dim, #7a7a85); flex: 0 0 auto;
+  padding: 4px; border-radius: 50%; cursor: pointer; opacity: 0.6;
+}
+.sp-row-del:hover { opacity: 1; color: var(--danger, #e53e3e); }
+.sp-add .sp-row-name { color: var(--accent, #3B82F6); }
+
+/* Add-station flow */
+.sp-msg { padding: 48px 16px; text-align: center; color: var(--dim, #7a7a85); font-size: 15px; }
+.sp-msg-sub { margin-top: 6px; font-size: 13px; }
+.sp-spin { display: block; font-size: 36px; margin-bottom: 14px; animation: sp-rot 1.5s linear infinite; }
+@keyframes sp-rot { from { transform: rotate(0deg); } to { transform: rotate(360deg); } }
+.sp-label {
+  display: block; margin: 16px 0 6px;
+  font-size: 13px; font-weight: 600; color: var(--dim, #7a7a85);
+}
+.sp-input {
+  width: 100%; box-sizing: border-box;
+  padding: 11px 14px; border-radius: 10px;
+  border: 1px solid var(--border, rgba(255, 255, 255, 0.12));
+  background: var(--card-bg, #17171b); color: var(--text, #f0f0f2);
+  font-size: 16px; font-family: inherit;
+}
+.sp-input:focus { outline: none; border-color: var(--accent, #3B82F6); }
+.sp-count { font-size: 13px; color: var(--dim, #7a7a85); margin-bottom: 6px; }
+.sp-map {
+  width: 100%; height: 280px; border-radius: 12px;
+  border: 1px solid var(--border, rgba(255, 255, 255, 0.12));
+  overflow: hidden;
+}
+.sp-err { color: var(--danger, #e53e3e); font-size: 13px; margin-top: 8px; }
+.sp-actions { display: flex; gap: 10px; justify-content: flex-end; margin: 20px 0 8px; }
+.sp-btn {
+  padding: 10px 18px; border-radius: 10px;
+  border: 1px solid var(--border, rgba(255, 255, 255, 0.12));
+  background: var(--card-bg, #17171b); color: var(--text, #f0f0f2);
+  font-size: 14px; font-weight: 600; font-family: inherit; cursor: pointer;
+}
+.sp-btn:hover { background: var(--surface-hover, rgba(255, 255, 255, 0.06)); }
+.sp-btn.sp-primary { background: var(--accent, #3B82F6); border-color: var(--accent, #3B82F6); color: #fff; }
+.sp-btn.sp-primary:hover { opacity: 0.9; }
+
+/* ── Live-feed indicator (LiveIndicator, lib/live-indicator.js) ───────────────
+   Self-contained so it works ANYWHERE, not just in a pill corner. The pill
+   corner variant still uses `.pill-live` from Main's style.css (which we can't
+   edit); this `.live-indicator` class is for every other placement.
+
+   Sized by the --li-size custom property (default 14px), so a caller sets the
+   size once via LiveIndicator.html({ size }). Flows inline by default. The
+   sig0/sig1/sig2 keyframes are defined in style.css and reused here. */
+.live-indicator {
+  display: inline-block;
+  position: relative;
+  width: var(--li-size, 14px);
+  height: var(--li-size, 14px);
+  flex: 0 0 auto;
+  vertical-align: middle;
+}
+.live-indicator svg {
+  position: absolute;
+  inset: 0;
+  width: 100%;
+  height: 100%;
+  opacity: 0;
+}
+.live-indicator .sig-0 { animation: sig0 4s steps(1, end) infinite; }
+.live-indicator .sig-1 { animation: sig1 4s steps(1, end) infinite; }
+.live-indicator .sig-2 { animation: sig2 4s steps(1, end) infinite; }
+/* Theme: show the dark artwork by default, the light artwork under body.light. */
+.live-indicator .dark-svg { display: block; }
+.live-indicator .light-svg { display: none; }
+body.light .live-indicator .dark-svg { display: none; }
+body.light .live-indicator .light-svg { display: block; }

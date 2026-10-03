@@ -3,11 +3,25 @@
 <head>
   <meta charset="UTF-8">
   <meta name="viewport" content="width=device-width, initial-scale=1.0">
-  <title>NextUp Transit — Route Config</title>
+  <title>NextUp Transit — Route Explorer (read-only)</title>
   <link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Noto+Sans:wght@400;500;600;700&display=swap">
   <link rel="stylesheet" href="https://fonts.googleapis.com/icon?family=Material+Icons">
   <link rel="stylesheet" href="https://unpkg.com/leaflet@1.9.4/dist/leaflet.css">
   <script src="https://unpkg.com/leaflet@1.9.4/dist/leaflet.js"></script>
+  <!--
+    route-explorer.html — READ-ONLY route-data browser (v7).
+
+    Ported from v6's route-config.html, which was a viewer + GTFS re-fetch/save
+    tool backed by the Main/ server's /api endpoints + parsers/. v7's server is
+    static (no /api), so this keeps ONLY the view half: it reads the static
+    routes-data.json this server already serves and draws each route's shape +
+    stops (the shapes are baked into routes-data.json). The write path — the
+    "Re-fetch All/Selected" buttons, saveRoute, /api/gtfs/shape, OBA re-fetch,
+    polyline encoding — was removed. To REGENERATE the data, run the batch tool:
+    `node scripts/build-routes-data.js` (see README).
+
+    A debug/overview tool: open at http://localhost:8080/route-explorer.html
+  -->
   <style>
     * { margin: 0; padding: 0; box-sizing: border-box; }
     body { font-family: 'Noto Sans', sans-serif; background: #0f1318; color: #e0e0e0; height: 100vh; overflow: hidden; }
@@ -16,15 +30,8 @@
     /* Left panel */
     .panel-left { width: 360px; border-right: 1px solid #2a2f38; display: flex; flex-direction: column; flex-shrink: 0; }
     .panel-header { padding: 16px; border-bottom: 1px solid #2a2f38; }
-    .panel-header h1 { font-size: 16px; font-weight: 600; margin-bottom: 8px; }
-    .panel-header .actions { display: flex; gap: 8px; margin-bottom: 10px; }
-    .btn { padding: 6px 12px; border: 1px solid #3a4050; border-radius: 6px; background: #1a1f28; color: #e0e0e0; font-size: 12px; cursor: pointer; font-family: inherit; }
-    .btn:hover { background: #252b36; border-color: #4a5060; }
-    .btn.primary { background: #1a6b3a; border-color: #2a8b4a; }
-    .btn.primary:hover { background: #1f7d44; }
-    .btn.danger { background: #6b1a1a; border-color: #8b2a2a; }
-    .btn.danger:hover { background: #7d1f1f; }
-    .btn:disabled { opacity: 0.4; cursor: not-allowed; }
+    .panel-header h1 { font-size: 16px; font-weight: 600; margin-bottom: 2px; }
+    .panel-header .subtitle { font-size: 11px; color: #888; margin-bottom: 10px; }
 
     .search-box { width: 100%; padding: 8px 12px; border: 1px solid #2a2f38; border-radius: 6px; background: #1a1f28; color: #e0e0e0; font-size: 13px; font-family: inherit; }
     .search-box:focus { outline: none; border-color: #4a8af4; }
@@ -76,10 +83,6 @@
 
     .status-bar { padding: 8px 16px; border-top: 1px solid #2a2f38; font-size: 11px; color: #888; display: flex; justify-content: space-between; }
 
-    .loading-overlay { position: absolute; inset: 0; background: rgba(15,19,24,0.85); display: flex; align-items: center; justify-content: center; z-index: 1000; }
-    .loading-overlay .spinner { font-size: 14px; color: #aaa; }
-    .hidden { display: none !important; }
-
     .toast { position: fixed; bottom: 20px; right: 20px; padding: 10px 16px; border-radius: 6px; font-size: 12px; z-index: 9999; animation: fadeIn 0.2s; }
     .toast.success { background: #1a3a1a; border: 1px solid #2a5a2a; color: #6c6; }
     .toast.error { background: #3a1a1a; border: 1px solid #5a2a2a; color: #c66; }
@@ -90,11 +93,8 @@
 <div class="layout">
   <div class="panel-left">
     <div class="panel-header">
-      <h1>Route Config</h1>
-      <div class="actions">
-        <button class="btn primary" onclick="refetchAll()">Re-fetch All</button>
-        <button class="btn" onclick="refetchSelected()" id="btnRefetchOne" disabled>Re-fetch Selected</button>
-      </div>
+      <h1>Route Explorer</h1>
+      <div class="subtitle">Read-only · all route data from routes-data.json</div>
       <input type="text" class="search-box" placeholder="Search routes..." oninput="filterRoutes(this.value)">
       <div class="agency-filter" id="agencyFilter"></div>
     </div>
@@ -108,9 +108,6 @@
   <div class="panel-right">
     <div class="map-container">
       <div id="map"></div>
-      <div class="loading-overlay hidden" id="loadingOverlay">
-        <div class="spinner">Loading...</div>
-      </div>
     </div>
     <div class="detail-panel" id="detailPanel">
       <h2>Select a route to view details</h2>
@@ -119,6 +116,7 @@
 </div>
 
 <script>
+// READ-ONLY route browser. No writes, no /api — reads the static routes-data.json.
 let routesData = null;
 let selectedRouteId = null;
 let map = null;
@@ -134,24 +132,25 @@ const AGENCY_NAMES = {
   '96': 'Monorail',
 };
 
-const OBA_BASE = 'https://api.pugetsound.onebusaway.org/api/where';
-const OBA_KEY = '55c7b445-e38b-4da6-ba94-0006a4b3a4bf';
+// Same CARTO key the app uses (see lib/app-state.js) so tiles aren't watermarked.
+const CARTO_KEY = 'cb1_3voy_1_3b54454d35a0e66f93ab3e4e';
 
 async function init() {
   map = L.map('map').setView([47.6, -122.3], 11);
-  L.tileLayer('https://{s}.basemaps.cartocdn.com/dark_all/{z}/{x}/{y}{r}.png', { maxZoom: 19 }).addTo(map);
+  L.tileLayer('https://{s}.basemaps.cartocdn.com/dark_all/{z}/{x}/{y}{r}.png?key=' + CARTO_KEY, { maxZoom: 19 }).addTo(map);
   await loadRoutesData();
   renderRouteList();
 }
 
 async function loadRoutesData() {
   try {
-    const res = await fetch('/api/routes-data');
+    // Static file served by this app — NOT an /api endpoint (v7 has none).
+    const res = await fetch('routes-data.json');
     routesData = await res.json();
     document.getElementById('statusCount').textContent = `${Object.keys(routesData.routes || {}).length} routes`;
     renderAgencyFilter();
   } catch (e) {
-    toast('Failed to load routes data: ' + e.message, 'error');
+    toast('Failed to load routes-data.json: ' + e.message, 'error');
   }
 }
 
@@ -225,7 +224,6 @@ function filterRoutes(q) { renderRouteList(q); }
 function selectRoute(routeId) {
   selectedRouteId = routeId;
   visibleDirs = 'all'; // reset direction filter when switching routes
-  document.getElementById('btnRefetchOne').disabled = false;
   renderRouteList(document.querySelector('.search-box').value);
   drawRouteOnMap(routeId);
   renderDetail(routeId);
@@ -352,132 +350,6 @@ function routeTypeLabel(type) {
   return { 0: 'Light Rail/Tram', 1: 'Subway', 2: 'Commuter Rail', 3: 'Bus', 4: 'Ferry' }[type] || `Type ${type}`;
 }
 
-async function refetchSelected() {
-  if (!selectedRouteId) return;
-  showLoading(true);
-  try {
-    const route = routesData.routes[selectedRouteId];
-    const agencyId = route.agencyId || selectedRouteId.split('_')[0];
-    const gtfsRouteId = selectedRouteId.replace(/^\d+_/, ''); // strip agency prefix
-
-    // Fetch shape from GTFS for each direction
-    const directions = route.directions || [];
-    let updated = 0;
-    for (let i = 0; i < directions.length; i++) {
-      try {
-        const res = await fetch(`/api/gtfs/shape/${agencyId}/${gtfsRouteId}/${i}`);
-        if (res.ok) {
-          const shape = await res.json();
-          if (shape.polyline) {
-            directions[i].polyline = shape.polyline;
-            updated++;
-          }
-        }
-      } catch (e) { /* skip this direction */ }
-    }
-
-    if (updated > 0) {
-      await saveRoute(selectedRouteId, route);
-      toast(`Re-fetched ${selectedRouteId} from GTFS — ${updated} directions updated`, 'success');
-    } else {
-      // Fallback to OBA if GTFS has no data
-      toast('No GTFS shape found, trying OBA...', 'success');
-      const obaDirs = await fetchRouteFromOBA(selectedRouteId);
-      if (obaDirs) {
-        route.directions = obaDirs;
-        await saveRoute(selectedRouteId, route);
-        toast(`Re-fetched ${selectedRouteId} from OBA — ${obaDirs.length} directions`, 'success');
-      }
-    }
-    selectRoute(selectedRouteId);
-  } catch (e) {
-    toast('Re-fetch failed: ' + e.message, 'error');
-  }
-  showLoading(false);
-}
-
-async function refetchAll() {
-  if (!confirm('Re-fetch all routes from GTFS (agency data)? This may take a moment on first run while feeds are downloaded.')) return;
-  showLoading(true);
-  const ids = Object.keys(routesData.routes || {});
-  let success = 0, failed = 0;
-
-  for (const id of ids) {
-    try {
-      const route = routesData.routes[id];
-      const agencyId = route.agencyId || id.split('_')[0];
-      const gtfsRouteId = id.replace(/^\d+_/, '');
-      const directions = route.directions || [];
-      let dirUpdated = 0;
-
-      for (let i = 0; i < directions.length; i++) {
-        try {
-          const res = await fetch(`/api/gtfs/shape/${agencyId}/${gtfsRouteId}/${i}`);
-          if (res.ok) {
-            const shape = await res.json();
-            if (shape.polyline) { directions[i].polyline = shape.polyline; dirUpdated++; }
-          }
-        } catch (e) {}
-      }
-
-      if (dirUpdated > 0) success++;
-      else failed++;
-    } catch (e) { failed++; }
-  }
-
-  try {
-    await fetch('/api/routes-data', { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify(routesData) });
-    toast(`Done: ${success} updated from GTFS, ${failed} unchanged`, 'success');
-    renderRouteList();
-  } catch (e) { toast('Failed to save: ' + e.message, 'error'); }
-  showLoading(false);
-}
-
-async function fetchRouteFromOBA(routeId) {
-  const url = `${OBA_BASE}/stops-for-route/${routeId}.json?key=${OBA_KEY}&includePolylines=true`;
-  const res = await fetch(url);
-  const j = await res.json();
-  const entry = j.data?.entry || {};
-  const refs = j.data?.references || {};
-
-  const stopRefs = {};
-  (refs.stops || []).forEach(s => { stopRefs[s.id] = s; });
-
-  const groups = entry.stopGroupings?.[0]?.stopGroups || [];
-  return groups.map((g, idx) => {
-    const stopIds = g.stopIds || [];
-    const stops = {};
-    stopIds.forEach(id => { const s = stopRefs[id] || {}; stops[id] = { name: s.name || id, lat: s.lat || 0, lon: s.lon || 0 }; });
-
-    const polylines = g.polylines || [];
-    let polyline = '';
-    if (polylines.length === 1) { polyline = polylines[0].points || ''; }
-    else if (polylines.length > 1) { polyline = combinePolylines(polylines.map(p => p.points || '')); }
-
-    return { name: g.name?.name || `Direction ${idx}`, stopIds, stops, polyline };
-  });
-}
-
-function combinePolylines(encodedList) {
-  // Instead of combining all segments (which creates loops from variant routes),
-  // pick the LONGEST polyline — it's almost always the primary/regular service.
-  let longest = '';
-  let longestLen = 0;
-  for (const encoded of encodedList) {
-    if (!encoded) continue;
-    const coords = decodePolyline(encoded);
-    if (coords.length > longestLen) {
-      longestLen = coords.length;
-      longest = encoded;
-    }
-  }
-  return longest;
-}
-
-async function saveRoute(routeId, routeData) {
-  await fetch(`/api/routes-data/${encodeURIComponent(routeId)}`, { method: 'PATCH', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify(routeData) });
-}
-
 function decodePolyline(encoded) {
   const points = [];
   let index = 0, lat = 0, lng = 0;
@@ -493,26 +365,6 @@ function decodePolyline(encoded) {
   return points;
 }
 
-function encodePolyline(points) {
-  let encoded = '', prevLat = 0, prevLng = 0;
-  for (const [lat, lng] of points) {
-    const latInt = Math.round(lat * 1e5), lngInt = Math.round(lng * 1e5);
-    encoded += encodeValue(latInt - prevLat) + encodeValue(lngInt - prevLng);
-    prevLat = latInt; prevLng = lngInt;
-  }
-  return encoded;
-}
-
-function encodeValue(v) {
-  v = v < 0 ? ~(v << 1) : (v << 1);
-  let s = '';
-  while (v >= 0x20) { s += String.fromCharCode((0x20 | (v & 0x1f)) + 63); v >>= 5; }
-  s += String.fromCharCode(v + 63);
-  return s;
-}
-
-function showLoading(show) { document.getElementById('loadingOverlay').classList.toggle('hidden', !show); }
-function sleep(ms) { return new Promise(r => setTimeout(r, ms)); }
 function toast(msg, type = 'success') {
   const el = document.createElement('div');
   el.className = `toast ${type}`;

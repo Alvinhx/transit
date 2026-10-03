@@ -1,0 +1,87 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
+  <title>NextUp — main-next</title>
+  <link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Noto+Sans:ital,wght@0,100..900&display=swap">
+  <link rel="stylesheet" href="https://fonts.googleapis.com/icon?family=Material+Icons">
+  <link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Material+Symbols+Rounded:opsz,wght,FILL,GRAD@20..48,100..700,0..1,-50..200&display=swap">
+  <link rel="stylesheet" href="https://unpkg.com/leaflet@1.9.4/dist/leaflet.css">
+  <link rel="stylesheet" href="main-next.css">
+  <script src="https://unpkg.com/leaflet@1.9.4/dist/leaflet.js"></script>
+  <style>
+    body { margin: 0; font-family: 'Noto Sans', sans-serif; background: var(--bg, #0d0d0f); color: var(--text, #f0f0f2); }
+    #boot { padding: 24px; color: var(--dim, #7a7a85); font-size: 13px; }
+  </style>
+</head>
+<body class="">
+  <!-- The home page mounts over this; it's just a pre-boot placeholder. -->
+  <div id="boot">Starting…</div>
+
+  <!-- data layer (reused from Main, copied into lib/) -->
+  <script src="lib/transit-logic.js"></script>
+  <script src="lib/transit-api.js"></script>
+  <script src="lib/transit-store.js"></script>
+  <script src="lib/app-state.js"></script>
+  <script src="lib/live-feed.js"></script>
+  <script src="lib/pin-store.js"></script>
+  <script src="lib/long-press.js"></script>
+  <!-- design system: tokens + atoms (lib/ui/) -->
+  <script src="lib/ui/route-tones.js"></script>
+  <script src="lib/ui/live-indicator.js"></script>
+  <script src="lib/ui/route-badge.js"></script>
+  <script src="lib/ui/route-tag.js"></script>
+  <script src="lib/ui/eta-pill.js"></script>
+  <script src="lib/ui/transit-card.js"></script>
+  <script src="lib/ui/whats-new.js"></script>
+  <script src="lib/card-render.js"></script>
+  <script src="lib/schedule-cache.js"></script>
+  <script src="lib/stop-feed.js"></script>
+  <!-- template + pages -->
+  <script src="lib/station-config.js"></script>
+  <script src="lib/view-mode.js"></script>
+  <script src="templates/map-sheet-template.js"></script>
+  <script src="templates/list-page-template.js"></script>
+  <script src="templates/mode-toggle.js"></script>
+  <script src="pages/alerts.js"></script>
+  <script src="pages/station.js"></script>
+  <script src="pages/station-picker.js"></script>
+  <script src="pages/detail.js"></script>
+  <script src="pages/home.js"></script>
+  <script src="pages/app.js"></script>
+
+  <script>
+    // Boot: start location, warm the route store, then mount the home page.
+    (async function () {
+      if (typeof AppState !== 'undefined') AppState.startLocationWatch();
+
+      try {
+        // Route shapes/stops for the detail page (schedules are fetched per route).
+        if (typeof TransitStore !== 'undefined' && TransitStore.loadFromStaticFile) {
+          await TransitStore.loadFromStaticFile('routes-data.json');
+        }
+        // Drop schedules cached before the latest service change (e.g. the
+        // 2026-08-29 fall change) so they re-fetch instead of serving the old
+        // timetable for up to the 90-day TTL.
+        if (typeof TransitStore !== 'undefined' && TransitStore.pruneStaleSchedules) {
+          TransitStore.pruneStaleSchedules();
+        }
+      } catch (e) { console.warn('routes-data preload failed', e); }
+
+      // Station catalogue. Loaded AFTER routes-data on purpose: built-in stations
+      // carry no lat/lon, so their centroids are derived from stop coordinates in
+      // the store. Also applies the city file's OBA base/key.
+      try {
+        if (typeof StationConfig !== 'undefined') await StationConfig.load('seattle');
+      } catch (e) { console.warn('station config load failed', e); }
+
+      const boot = document.getElementById('boot');
+      if (boot) boot.remove();
+      AppShell.start();
+      // Version-gated "What's New" — shows once per version bump, over the app.
+      if (typeof WhatsNew !== 'undefined') { try { WhatsNew.show(); } catch (e) {} }
+    })();
+  </script>
+</body>
+</html>

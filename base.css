@@ -61,12 +61,18 @@ header{background:var(--surface);padding:14px 16px 10px;display:flex;align-items
 .header-star svg path{fill:var(--dim)}
 .header-star.is-default svg path{fill:var(--pin-color)}
 
-.loc-menu{display:none;position:absolute;top:100%;left:0;margin-top:8px;background:var(--surface-menu);border:1px solid var(--border-menu);border-radius:12px;padding:6px 0;min-width:280px;z-index:100;box-shadow:0 8px 24px var(--overlay)}
+.loc-menu{display:none;position:absolute;top:100%;left:0;margin-top:8px;background:var(--surface-menu);border:1px solid var(--border-menu);border-radius:12px;padding:6px 0;min-width:280px;max-width:calc(100vw - 32px);z-index:100;box-shadow:0 8px 24px var(--overlay)}
 .loc-menu.open{display:block}
 .loc-menu-top{padding:4px 6px;border-bottom:1px solid var(--border);margin-bottom:4px}
 .loc-menu-columns{display:flex}
 .loc-menu-col{flex:1;min-width:0}
 .loc-menu-col+.loc-menu-col{border-left:1px solid var(--border)}
+@media (max-width:600px){
+  .loc-menu{min-width:0;width:calc(100vw - 32px)}
+  .loc-menu-columns{flex-direction:column}
+  .loc-menu-col{flex:none}
+  .loc-menu-col+.loc-menu-col{border-left:none;border-top:1px solid var(--border)}
+}
 .loc-section-title{padding:6px 20px 4px;font-size:11px;font-weight:700;color:var(--dim);text-transform:uppercase;letter-spacing:0.5px}
 .loc-item{display:block;padding:10px 20px;color:var(--text);text-decoration:none;font-size:16px;font-weight:500;cursor:pointer}
 .loc-item:hover{background:var(--border)}
@@ -92,42 +98,18 @@ header{background:var(--surface);padding:14px 16px 10px;display:flex;align-items
 .card.pinned{border-radius:48px}
 .card-pin{position:absolute;top:-4px;left:-4px;color:var(--pin-color);opacity:0.9;font-size:16px;z-index:1}
 .card-pin svg{width:16px;height:16px;fill:var(--pin-color)}
-.badge{width:72px;height:72px;border-radius:36px;display:flex;align-items:center;justify-content:center;flex-shrink:0;flex-direction:column;gap:-2px}
-.badge.square{border-radius:24px}
-.badge-num{font-family:var(--font-sans);font-weight:900;font-size:36px}
-.badge-num.sm{font-size:22px}
-.badge-num.xs{font-size:14px}
-.badge-sub{font-size:10px;font-weight:700;opacity:0.55;color:#fff;margin-top:-4px}
-.badge-icon{font-size:36px;color:#fff;font-family:'Material Symbols Rounded'}
+/* .badge* moved to lib/ui/route-badge.css (RouteBadge atom) */
 .info{flex:1;display:flex;flex-direction:column;gap:4px;height:72px;min-width:0;overflow:hidden}
-.tag{display:inline-flex;align-items:center;padding:4px 10px;border-radius:12px;font-size:12px;font-weight:700;align-self:flex-start;flex-shrink:0;max-width:100%;overflow:hidden;text-overflow:ellipsis;white-space:nowrap}
+/* .tag moved to lib/ui/route-tag.css (RouteTag atom) */
 .dest{flex:1;display:flex;align-items:center;font-size:22px;font-weight:600;overflow:hidden;line-height:1.2;min-width:0;word-wrap:break-word;white-space:normal;color:var(--text)}
 .etas{display:flex;gap:6px;flex-shrink:0;align-items:center}
-.pill{width:80px;height:80px;border-radius:40px;background:var(--pill-bg);display:flex;flex-direction:column;align-items:center;justify-content:center;position:relative;overflow:visible}
-.pill.now{width:auto;min-width:100px;height:80px;border-radius:40px;background:transparent;flex-direction:row;gap:3px;padding:0 18px;position:relative;overflow:visible}
-.pill.now::before{content:'';position:absolute;top:0;left:0;right:0;bottom:0;background:var(--now-bg);border-radius:40px;animation:pulse-bg 1s ease-in-out infinite}
-.pill.now>*{position:relative;z-index:1}
-.pill-num{font-family:var(--font-sans);font-size:40px;font-weight:700;line-height:1;color:var(--text)}
-.pill.sched .pill-num{color:var(--dim)}
-.pill.now .pill-num{font-size:32px;font-weight:900;color:var(--now-text)}
-.pill-min{font-size:8px;font-weight:500;color:var(--dim);margin-top:-4px}
-.pill.now .pill-min{display:none}
-.pill-live{position:absolute;top:8px;right:8px;width:14px;height:14px}
-.pill-live svg{position:absolute;top:0;left:0;width:14px;height:14px;opacity:0}
-.pill-live .sig-0{animation:sig0 4s steps(1,end) infinite}
-.pill-live .sig-1{animation:sig1 4s steps(1,end) infinite}
-.pill-live .sig-2{animation:sig2 4s steps(1,end) infinite}
-.pill-live .dark-svg{display:block}
-.pill-live .light-svg{display:none}
-body.light .pill-live .dark-svg{display:none}
-body.light .pill-live .light-svg{display:block}
+/* .pill* / .pill-live* moved to lib/ui/eta-pill.css (EtaPill atom).
+   The sig0/1/2 keyframes below stay here (foundation) — the atom's .pill-live
+   and .live-indicator both animate against them. */
 @keyframes sig0{0%{opacity:1}12%,99%{opacity:0}100%{opacity:1}}
 @keyframes sig1{0%,11%{opacity:0}12%,24%{opacity:1}25%,99%{opacity:0}}
 @keyframes sig2{0%,24%{opacity:0}25%,99%{opacity:1}}
-.pill.live-near{background:var(--pill-bg)}
-.pill.live-far{background:var(--pill-bg)}
-.pill.sched{background:var(--pill-bg)}
-.next-day-times{display:flex;gap:12px;align-items:center;color:var(--dim);font-size:28px;font-weight:700;font-family:var(--font-sans)}
+/* .pill.live-near/.live-far/.sched + .next-day-times → lib/ui/eta-pill.css */
 footer{background:var(--surface);padding:6px 32px;display:flex;justify-content:space-between;font-size:12px;color:var(--dim);align-items:center}
 footer a{color:var(--accent);text-decoration:none}
 .theme-toggle{background:none;border:1px solid var(--border);border-radius:20px;padding:4px 12px;color:var(--dim);font-size:11px;cursor:pointer;font-family:var(--font-sans);display:flex;align-items:center;gap:4px}
@@ -135,21 +117,11 @@ footer a{color:var(--accent);text-decoration:none}
 /* Light theme — component overrides that can't be done via variables alone */
 body.light .card{background:var(--card-bg)}
 body.light .dest{color:var(--text)}
-body.light .pill{background:var(--pill-bg)}
-body.light .pill.now{background:transparent}
-body.light .pill.now::before{background:var(--now-bg)}
-body.light .pill.now .pill-num{color:var(--now-text)}
-body.light .pill.live-near{background:var(--pill-bg)}
-body.light .pill.live-far{background:var(--pill-bg)}
-body.light .pill.sched{background:var(--pill-bg)}
-body.light .pill-num{color:var(--text)}
-body.light .pill.sched .pill-num{color:var(--dim)}
-body.light .pill.now .pill-num{color:var(--now-text)}
-body.light .pill-live .dot{fill:var(--live)}
+/* body.light .pill* → lib/ui/eta-pill.css (EtaPill atom) */
 body.light .clock{color:var(--dim)}
 body.light .loc-menu{background:var(--surface-menu);border-color:var(--border-menu);box-shadow:0 8px 24px rgba(0,0,0,0.12)}
 body.light .loc-item:hover{background:var(--surface-hover)}
-body.light .tag{background:rgba(255,255,255,0.7)!important}
+/* body.light .tag → lib/ui/route-tag.css */
 body.light .card-pin svg{fill:var(--pin-color)}
 .loading{padding:20px;color:var(--dim);font-size:14px}
 .section-divider{grid-column:1/-1;height:1px;background:var(--border);margin:4px 0}
@@ -158,46 +130,18 @@ body.light .card-pin svg{fill:var(--pin-color)}
   .results{padding:8px;gap:8px;grid-template-columns:1fr}
   .card{height:80px;padding:10px 10px 10px 12px;gap:10px;border-radius:20px}
   .card.pinned{border-radius:40px}
-  .badge{width:52px;height:52px;border-radius:26px}
-  .badge.square{border-radius:18px}
-  .badge-num{font-size:24px}
-  .badge-num.sm{font-size:16px}
-  .badge-sub{font-size:7px}
-  .badge-icon{font-size:24px}
   .info{height:52px;gap:2px}
-  .tag{font-size:9px;padding:2px 6px;border-radius:8px}
   .dest{font-size:15px}
   .etas{gap:4px}
-  .pill{width:52px;height:52px;border-radius:26px}
-  .pill.now{min-width:68px;height:52px;border-radius:26px;padding:0 10px}
-  .pill.now::before{border-radius:26px}
-  .pill-num{font-size:26px}
-  .pill.now .pill-num{font-size:20px}
-  .pill-min{font-size:5px;margin-top:-2px}
-  .pill-live{top:6px;right:6px;width:12px;height:12px}
-  .pill-live svg{width:12px;height:12px}
-  .next-day-times{font-size:14px;gap:6px}
+  /* .tag / .pill* / .next-day-times responsive → lib/ui/route-tag.css + eta-pill.css */
   footer{padding:4px 14px;font-size:9px}
 }
 @media(max-width:430px){
   .card{height:72px;padding:8px 8px 8px 10px;gap:8px;border-radius:16px}
   .card.pinned{border-radius:36px}
-  .badge{width:46px;height:46px;border-radius:23px}
-  .badge.square{border-radius:18px}
-  .badge-num{font-size:20px}
-  .badge-num.sm{font-size:14px}
-  .badge-icon{font-size:20px}
   .info{height:46px}
   .dest{font-size:13px}
-  .pill{width:42px;height:42px;border-radius:21px}
-  .pill.now{min-width:56px;height:42px;border-radius:21px;padding:0 8px}
-  .pill.now::before{border-radius:21px}
-  .pill-num{font-size:20px}
-  .pill.now .pill-num{font-size:16px}
-  .pill-min{font-size:5px}
-  .pill-live{top:5px;right:5px;width:10px;height:10px}
-  .pill-live svg{width:10px;height:10px}
-  .next-day-times{font-size:12px;gap:4px}
+  /* .pill* / .next-day-times responsive → lib/ui/eta-pill.css */
 }
 /* Creation Modal */
 .modal-overlay{position:fixed;top:0;left:0;width:100%;height:100%;background:var(--overlay);z-index:200;display:flex;align-items:center;justify-content:center;padding:16px}

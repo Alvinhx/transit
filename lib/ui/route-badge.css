@@ -1,0 +1,38 @@
+/* route-badge.css — RouteBadge atom styling (main-next design system)
+   The .badge* family, moved verbatim out of base.css so the atom owns its CSS.
+   Card size is the default; the detail size is the .badge--detail modifier. */
+
+/* ── card size (72px; shape from square/round) ─────────────────────────────── */
+.badge{width:72px;height:72px;border-radius:36px;display:flex;align-items:center;justify-content:center;flex-shrink:0;flex-direction:column;gap:-2px}
+.badge.square{border-radius:24px}
+.badge-num{font-family:var(--font-sans);font-weight:900;font-size:36px}
+.badge-num.sm{font-size:22px}
+.badge-num.xs{font-size:14px}
+.badge-sub{font-size:10px;font-weight:700;opacity:0.55;color:#fff;margin-top:-4px}
+.badge-icon{font-size:36px;color:#fff;font-family:'Material Symbols Rounded'}
+
+/* card size — responsive (moved from base.css's shared @media blocks) */
+@media(max-width:700px){
+  .badge{width:52px;height:52px;border-radius:26px}
+  .badge.square{border-radius:18px}
+  .badge-num{font-size:24px}
+  .badge-num.sm{font-size:16px}
+  .badge-sub{font-size:7px}
+  .badge-icon{font-size:24px}
+}
+@media(max-width:430px){
+  .badge{width:46px;height:46px;border-radius:23px}
+  .badge.square{border-radius:18px}
+  .badge-num{font-size:20px}
+  .badge-num.sm{font-size:14px}
+  .badge-icon{font-size:20px}
+}
+
+/* ── detail size (44px circle) ─────────────────────────────────────────────
+   Compound specificity (.badge.badge--detail = 0,2,0) intentionally beats the
+   bare .badge responsive rules above (0,1,0) at every width, so a detail badge
+   stays 44px regardless of viewport. */
+.badge.badge--detail{width:44px;height:44px;border-radius:50%;color:#fff}
+.badge--detail .badge-num{font-size:18px;font-weight:700;line-height:1}
+.badge--detail .badge-sub{font-size:9px;font-weight:700;letter-spacing:0.4px;opacity:1;margin-top:0}
+.badge--detail .badge-icon{font-size:24px}

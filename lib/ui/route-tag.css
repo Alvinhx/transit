@@ -1,0 +1,26 @@
+/* route-tag.css — RouteTag atom styling (main-next design system)
+   The operator/service chip. Two size variants moved verbatim out of the files
+   that used to own them, so the atom is the single owner:
+     • .tag          — card size   (was in base.css)
+     • .dp-badge-tag — detail size (was in main-next.css)
+   Colors are applied inline by the atom (from RouteTones); these rules are the
+   shape/type only, unchanged from before. */
+
+/* ── card size ─────────────────────────────────────────────────────────────── */
+.tag{display:inline-flex;align-items:center;padding:4px 10px;border-radius:12px;font-size:12px;font-weight:700;align-self:flex-start;flex-shrink:0;max-width:100%;overflow:hidden;text-overflow:ellipsis;white-space:nowrap}
+/* Light theme forces a translucent-white chip regardless of route color. */
+body.light .tag{background:rgba(255,255,255,0.7)!important}
+@media(max-width:700px){
+  .tag{font-size:9px;padding:2px 6px;border-radius:8px}
+}
+
+/* ── detail size ───────────────────────────────────────────────────────────── */
+.dp-badge-tag {
+  font-size: 11px;
+  font-weight: 700;
+  text-transform: uppercase;
+  letter-spacing: 0.4px;
+  padding: 2px 8px;
+  border-radius: 8px;
+  align-self: flex-start;
+}
