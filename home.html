@@ -1,0 +1,25 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <!--
+    Legacy-URL redirect stub.
+
+    v6 was served at /home.html; v7 lives at the site root (/ -> index.html).
+    This bounces anyone with a saved /home.html bookmark to the new app. Kept as
+    a static file (not a server rule) so it works on static hosting (GitHub
+    Pages) as well as the local node server — both just serve this file, which
+    then redirects. location.replace() avoids leaving /home.html in history, so
+    the back button won't loop. Redirects to a clean app start; v6 query/hash
+    state does not map to v7's routing.
+  -->
+  <meta http-equiv="refresh" content="0; url=./">
+  <link rel="canonical" href="./">
+  <meta name="robots" content="noindex">
+  <title>NextUp Transit — redirecting…</title>
+  <script>location.replace('./');</script>
+</head>
+<body style="font-family:system-ui,sans-serif;padding:24px;background:#0d1117;color:#e6edf3">
+  NextUp has moved. <a href="./" style="color:#3B82F6">Open NextUp Transit →</a>
+</body>
+</html>
