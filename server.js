@@ -82,7 +82,8 @@ const server = http.createServer(async (req, res) => {
   await serveStatic(req, res);
 });
 
-server.listen(PORT, () => {
+// Loopback only: local dev server, not reachable from other machines.
+server.listen(PORT, '127.0.0.1', () => {
   console.log(`NextUp Transit (v7) running at http://localhost:${PORT}`);
   console.log(`  Static root: ${ROOT}`);
 });

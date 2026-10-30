@@ -277,7 +277,7 @@ const HomePage = (function () {
       topOverlay: overlay,
       sheetHeader: _buildSheetHeader(),
       sheetBody: _buildSheetBody(),
-      sheet: { initial: SHEET_INITIAL, draggable: true, snap: false },
+      sheet: { initial: SHEET_INITIAL, draggable: true, min: 1 / 3, max: 0.95, onPullRefresh: () => (_state && _state.feed ? _state.feed.refresh() : null) },
       mapController: {
         onReady(mapEl) {
           if (!_state) return;

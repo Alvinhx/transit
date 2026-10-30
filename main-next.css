@@ -84,8 +84,27 @@
   flex: 1 1 auto;
   overflow-y: auto;
   -webkit-overflow-scrolling: touch;
+  overscroll-behavior: contain; /* don't chain overscroll to the document → no accidental pull-to-refresh */
   padding: 0 16px 16px;
 }
+/* Pull-to-refresh indicator — revealed only when pulling down at the sheet's
+   minimum height (the staged-scroll bottom stage). Height/opacity driven in JS. */
+.ms-ptr {
+  flex: 0 0 auto;
+  height: 0;
+  opacity: 0;
+  overflow: hidden;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  gap: 8px;
+  color: var(--dim, #7a7a85);
+  font-size: 13px;
+}
+.ms-ptr .ms-ptr-spinner { font-size: 18px; transition: transform 0.2s ease; }
+.ms-ptr.ms-ptr-armed .ms-ptr-spinner { transform: rotate(180deg); }
+.ms-ptr.ms-ptr-busy .ms-ptr-spinner { animation: ms-ptr-spin 0.8s linear infinite; }
+@keyframes ms-ptr-spin { to { transform: rotate(360deg); } }
 
 /* ── Detail page (consumer of the template) ───────────────────────────────── */
 .dp-overlay-top {

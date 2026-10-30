@@ -44,6 +44,12 @@ const DetailPage = (function () {
   }
 
   let _state = null; // { page, map, routeId, direction, allStops, nearestStopId, feed, unsubFeed, locCb, vehicleMarkers, userMarker, baseLayer, upcomingLayer, stopMarkers }
+  // History-based back (step A): detail pushes ONE history entry on open, so the
+  // browser/OS back gesture (swipe) or Back button pops it → we close the detail
+  // and stay in the app instead of navigating away from the site. The X button
+  // routes through history.back() so the stack stays balanced. (Step B — making
+  // station-mode back-to-home — will push its own entry underneath this one.)
+  let _popHandler = null, _historyPushed = false, _closingViaPop = false;
 
   function _isLight() { return typeof AppState !== 'undefined' ? AppState.isLight : false; }
   function _tileUrl() { return typeof AppState !== 'undefined' ? AppState.getMapTileUrl() : 'https://{s}.basemaps.cartocdn.com/dark_all/{z}/{x}/{y}{r}.png'; }
@@ -168,10 +174,35 @@ const DetailPage = (function () {
   }
 
   // ── Vehicle markers from a LiveFeed snapshot ───────────────────────────────
+  // Markers PERSIST across the 20s ticks (keyed by vehicleId/tripId) and glide to
+  // each new position, instead of being destroyed + recreated every refresh —
+  // which teleported the bus and flashed it off/on. A short grace tolerates a
+  // single-poll OBA dropout so the bus doesn't blink out and back.
+  const _VEHICLE_TWEEN_MS = 1500;      // glide duration to the newly reported spot
+  const _VEHICLE_MISS_LIMIT = 2;       // remove only after absent this many consecutive polls
+
+  // Smoothly move a marker to (toLat,toLon) over `duration` via rAF-interpolated
+  // setLatLng. Using setLatLng (not a CSS transform transition) means panning /
+  // zooming the map never makes the marker lag — each frame sets a real latlng.
+  function _animateMarkerTo(marker, toLat, toLon, duration) {
+    duration = duration || _VEHICLE_TWEEN_MS;
+    if (marker._raf) { cancelAnimationFrame(marker._raf); marker._raf = null; }
+    const start = marker.getLatLng();
+    const fromLat = start.lat, fromLon = start.lng;
+    if (Math.abs(fromLat - toLat) < 1e-7 && Math.abs(fromLon - toLon) < 1e-7) return; // no move
+    const t0 = (typeof performance !== 'undefined' ? performance.now() : Date.now());
+    function step(now) {
+      let p = (now - t0) / duration;
+      if (p < 0) p = 0; else if (p > 1) p = 1;
+      marker.setLatLng([fromLat + (toLat - fromLat) * p, fromLon + (toLon - fromLon) * p]);
+      marker._raf = (p < 1) ? requestAnimationFrame(step) : null;
+    }
+    marker._raf = requestAnimationFrame(step);
+  }
+
   function _renderVehicles(snapshot) {
     if (!_state || !_state.map) return;
-    _state.vehicleMarkers.forEach(m => _state.map.removeLayer(m));
-    _state.vehicleMarkers = [];
+    const markers = _state.vehicleMarkers; // { id -> L.marker }
     const currentDirId = _state.direction ? _state.direction.directionId : null;
     const mode = _state.cardData ? _state.cardData.mode : 'bus';
     // Shared mapping — the local copy this replaced rendered the MONORAIL as a
@@ -181,17 +212,41 @@ const DetailPage = (function () {
       : (mode === 'rail' ? 'train' : mode === 'streetcar' ? 'tram' : 'directions_bus');
     const color = _upcomingColor();
 
+    const seen = new Set();
     (snapshot.vehicles || []).forEach(v => {
       if (!v.lat && !v.lon) return;
       if (currentDirId != null && v.directionId !== undefined && String(v.directionId) !== String(currentDirId)) return;
-      const icon = L.divIcon({
-        className: '',
-        html: `<div style="width:32px;height:32px;border-radius:50%;background:#fff;border:2px solid ${color};display:flex;align-items:center;justify-content:center;box-shadow:0 2px 8px rgba(0,0,0,0.2)"><span class="material-icons" style="font-size:18px;color:${color}">${iconName}</span></div>`,
-        iconSize: [32, 32], iconAnchor: [16, 16],
-      });
-      const marker = L.marker([v.lat, v.lon], { icon, zIndexOffset: 1000 }).addTo(_state.map);
-      marker.bindPopup(`<b>${v.tripHeadsign || 'In service'}</b>`);
-      _state.vehicleMarkers.push(marker);
+      const id = String(v.vehicleId || v.tripId || (v.lat + ',' + v.lon));
+      seen.add(id);
+      const existing = markers[id];
+      if (existing) {
+        existing._miss = 0;
+        _animateMarkerTo(existing, v.lat, v.lon);                      // glide to the new spot
+        existing.setPopupContent(`<b>${v.tripHeadsign || 'In service'}</b>`);
+      } else {
+        const icon = L.divIcon({
+          className: '',
+          html: `<div style="width:32px;height:32px;border-radius:50%;background:#fff;border:2px solid ${color};display:flex;align-items:center;justify-content:center;box-shadow:0 2px 8px rgba(0,0,0,0.2)"><span class="material-icons" style="font-size:18px;color:${color}">${iconName}</span></div>`,
+          iconSize: [32, 32], iconAnchor: [16, 16],
+        });
+        const marker = L.marker([v.lat, v.lon], { icon, zIndexOffset: 1000 }).addTo(_state.map);
+        marker.bindPopup(`<b>${v.tripHeadsign || 'In service'}</b>`);
+        marker._miss = 0;
+        markers[id] = marker;                                          // created at position — no glide-in
+      }
+    });
+
+    // Drop vehicles absent for too many consecutive polls (grace against a
+    // single-poll OBA dropout, which otherwise blinked the bus off then on).
+    Object.keys(markers).forEach(id => {
+      if (seen.has(id)) return;
+      const m = markers[id];
+      m._miss = (m._miss || 0) + 1;
+      if (m._miss >= _VEHICLE_MISS_LIMIT) {
+        if (m._raf) cancelAnimationFrame(m._raf);
+        _state.map.removeLayer(m);
+        delete markers[id];
+      }
     });
   }
 
@@ -652,7 +707,7 @@ const DetailPage = (function () {
       topOverlay: overlay,
       sheetHeader: header,
       sheetBody: body,
-      sheet: { snaps: [0.3, 0.5, 0.9], initial: 0.5, draggable: true },
+      sheet: { initial: 0.5, draggable: true, min: 1 / 3, max: 0.95, onPullRefresh: () => { if (!_state) return null; const p = _state.feed ? _state.feed.refresh() : null; _refreshStopEtas(); return p; } },
       mapController: {
         onReady(mapEl) {
           if (!_state) return;
@@ -684,10 +739,22 @@ const DetailPage = (function () {
         },
         onDestroy() {
           // Clean teardown — close any alert page, stop feed, drop listener, remove map.
+          // History-based back: detach our popstate listener and reset the flags.
+          // (If this close came via a back-pop, the pushed entry is already gone;
+          // if via the X button, _requestClose already did history.back().)
+          if (_popHandler) { window.removeEventListener('popstate', _popHandler); _popHandler = null; }
+          _historyPushed = false; _closingViaPop = false;
           if (typeof AlertsPage !== 'undefined' && AlertsPage.isOpen()) AlertsPage.close();
           if (_state) {
             if (_state.unsubFeed) { try { _state.unsubFeed(); } catch (e) {} }
             if (_state.feed) { try { _state.feed.stop(); } catch (e) {} }
+            // Cancel any in-flight vehicle glide animations.
+            if (_state.vehicleMarkers) {
+              Object.keys(_state.vehicleMarkers).forEach(id => {
+                const m = _state.vehicleMarkers[id];
+                if (m && m._raf) { try { cancelAnimationFrame(m._raf); } catch (e) {} }
+              });
+            }
             if (_state.locCb && AppState.offLocationUpdate) AppState.offLocationUpdate(_state.locCb);
             if (_state.map) { try { _state.map.remove(); } catch (e) {} }
           }
@@ -709,20 +776,37 @@ const DetailPage = (function () {
       page, cardData, routeId,
       map: null, direction: null, allStops: [], nearestStopId: null, _framed: false, alerts: [],
       feed: null, unsubFeed: null, locCb: null,
-      vehicleMarkers: [], userMarker: null, userLine: null, originMarker: null,
+      vehicleMarkers: {}, userMarker: null, userLine: null, originMarker: null,
       baseLayer: null, upcomingLayer: null, stopMarkers: [],
     };
 
     page.mount(document.body);
 
+    // History-based back: push one entry, then a back (swipe / button) pops it
+    // and the popstate handler closes the detail. Programmatic framing etc. never
+    // touch history, so nothing else here affects the stack.
+    try { history.pushState({ dpOpen: true }, ''); _historyPushed = true; }
+    catch (e) { _historyPushed = false; }
+    _closingViaPop = false;
+    _popHandler = function () { _closingViaPop = true; close(); };
+    window.addEventListener('popstate', _popHandler);
+
     // Wire overlay buttons
-    overlay.querySelector('#dp-close').addEventListener('click', close);
+    overlay.querySelector('#dp-close').addEventListener('click', _requestClose);
     overlay.querySelector('#dp-alerts').addEventListener('click', _openAlerts);
     overlay.querySelector('#dp-zin').addEventListener('click', () => { if (_state && _state.map) _state.map.zoomIn(); });
     overlay.querySelector('#dp-zout').addEventListener('click', () => { if (_state && _state.map) _state.map.zoomOut(); });
     overlay.querySelector('#dp-locate').addEventListener('click', () => {
       if (_state && _state.map && AppState.userLat != null) { _state._framed = false; _resolveNearestAndFrame(); _setLocateVisible(false); }
     });
+  }
+
+  // X button / programmatic close. If we pushed a history entry, go BACK so the
+  // SAME popstate path closes us (keeps the history stack balanced); otherwise
+  // (no history, or we're already closing via a pop) close directly.
+  function _requestClose() {
+    if (_state && _historyPushed && !_closingViaPop) { try { history.back(); return; } catch (e) {} }
+    close();
   }
 
   function close() {
@@ -734,5 +818,6 @@ const DetailPage = (function () {
 
   function isOpen() { return !!_state; }
 
-  return { open, close, isOpen };
+  // Public close routes through _requestClose so external callers stay balanced.
+  return { open, close: _requestClose, isOpen };
 })();

@@ -53,7 +53,7 @@ const MapSheetTemplate = (function () {
 
   function createMapSheetPage(opts) {
     opts = opts || {};
-    const sheetCfg = Object.assign({ snaps: [0.3, 0.5, 0.9], initial: 0.5, draggable: true }, opts.sheet || {});
+    const sheetCfg = Object.assign({ min: 1 / 3, max: 0.95, initial: 0.5, draggable: true }, opts.sheet || {});
     const mapController = opts.mapController || {};
 
     let _mounted = false;
@@ -95,6 +95,13 @@ const MapSheetTemplate = (function () {
     header.appendChild(_asNode(opts.sheetHeader));
     sheet.appendChild(header);
 
+    // Pull-to-refresh indicator — between header and body; revealed only when
+    // pulling down while the sheet sits at its minimum height. Driven by _initDrag.
+    const ptr = document.createElement('div');
+    ptr.className = 'ms-ptr';
+    ptr.innerHTML = '<span class="ms-ptr-spinner material-icons">refresh</span><span class="ms-ptr-text">Pull to refresh</span>';
+    sheet.appendChild(ptr);
+
     const body = document.createElement('div');
     body.className = 'ms-sheet-body';
     body.appendChild(_asNode(opts.sheetBody));
@@ -102,57 +109,126 @@ const MapSheetTemplate = (function () {
 
     root.appendChild(sheet);
 
-    // ── Sheet sizing / snapping ───────────────────────────────────────────────
-    function _applySnap(fraction, animate) {
-      _currentSnap = Math.max(0.08, Math.min(0.95, fraction));
+    // ── Sheet sizing (free-drag, no snap — clamped between min and max) ────────
+    function _applyHeight(fraction, animate) {
+      _currentSnap = Math.max(sheetCfg.min, Math.min(sheetCfg.max, fraction));
       const h = Math.round(_screenH() * _currentSnap);
       sheet.style.transition = animate ? 'height 0.25s ease' : 'none';
       sheet.style.height = h + 'px';
       // IMPORTANT: do NOT touch the map here. Map is frozen after framing.
     }
+    function _minH() { return _screenH() * sheetCfg.min; }
+    function _maxH() { return _screenH() * sheetCfg.max; }
 
-    function _nearestSnap(fraction) {
-      let best = sheetCfg.snaps[0], bestD = Infinity;
-      for (const s of sheetCfg.snaps) {
-        const d = Math.abs(s - fraction);
-        if (d < bestD) { bestD = d; best = s; }
-      }
-      return best;
+    // ── Staged drag (touch) — ONE gesture flows between three modes, decided at
+    //    the start of the gesture from the sheet position, the content scroll
+    //    offset, and the drag direction (matches the user's staged model):
+    //      'sheet'   — move the sheet (grow when below max / shrink when the
+    //                  content is at its top and the sheet is above min). We
+    //                  preventDefault so the map/page never scroll or refresh.
+    //      'content' — let the body scroll NATIVELY (keeps momentum). No
+    //                  preventDefault. Used when the sheet is at max (drag up) or
+    //                  the content is mid-scroll (drag down).
+    //      'refresh' — only when the sheet is at its MIN and content at top and
+    //                  you pull down: a controlled pull-to-refresh (soft; calls
+    //                  sheetCfg.onPullRefresh). Native pull-to-refresh is disabled
+    //                  via overscroll-behavior so it can't fire anywhere else.
+    //    Mode is locked per gesture (so native momentum scrolling stays intact);
+    //    crossing stages happens on the next finger motion. The whole sheet is
+    //    the drag surface — you don't have to hit the little handle.
+    //    Mouse keeps a simple handle-drag (desktop is not the target interface).
+    const _DRAG_THRESHOLD = 8;   // px before a touch counts as a drag (taps/long-press pass through)
+    const _PTR_TRIGGER = 64;     // px of pull-down past min before a refresh arms
+    let _refreshing = false;
+
+    function _setPtr(pull, armed, busy) {
+      ptr.style.transition = 'none';
+      ptr.style.height = (busy ? 44 : Math.min(Math.round(pull * 0.5), 56)) + 'px';
+      ptr.style.opacity = busy ? '1' : String(Math.min(pull / _PTR_TRIGGER, 1));
+      ptr.classList.toggle('ms-ptr-armed', !!armed);
+      ptr.classList.toggle('ms-ptr-busy', !!busy);
+      const txt = ptr.querySelector('.ms-ptr-text');
+      if (txt) txt.textContent = busy ? 'Refreshing\u2026' : (armed ? 'Release to refresh' : 'Pull to refresh');
+    }
+    function _resetPtr(animate) {
+      ptr.style.transition = animate ? 'height 0.2s ease, opacity 0.2s ease' : 'none';
+      ptr.style.height = '0px';
+      ptr.style.opacity = '0';
+      ptr.classList.remove('ms-ptr-armed', 'ms-ptr-busy');
+    }
+    function _triggerRefresh() {
+      _refreshing = true;
+      _setPtr(0, false, true);
+      let p = null;
+      try { if (typeof sheetCfg.onPullRefresh === 'function') p = sheetCfg.onPullRefresh(); } catch (e) {}
+      Promise.resolve(p).catch(() => {}).finally(() => {
+        setTimeout(() => { _resetPtr(true); _refreshing = false; }, 400);
+      });
     }
 
-    // ── Drag handling (sheet only — never affects the map) ─────────────────────
     function _initDrag() {
       if (!sheetCfg.draggable) return;
-      let startY = 0, startH = 0, dragging = false;
+      let dragging = false, decided = false, mode = null, startY = 0, startH = 0, pull = 0;
 
-      function down(clientY) {
-        dragging = true;
-        startY = clientY;
+      sheet.addEventListener('touchstart', e => {
+        if (_refreshing || e.touches.length !== 1) return;
+        dragging = true; decided = false; mode = null; pull = 0;
+        startY = e.touches[0].clientY;
         startH = sheet.getBoundingClientRect().height;
         sheet.style.transition = 'none';
-      }
-      function move(clientY) {
+      }, { passive: true });
+
+      sheet.addEventListener('touchmove', e => {
         if (!dragging) return;
-        const dy = startY - clientY;           // up = taller
-        const h = Math.max(0.08 * _screenH(), Math.min(0.95 * _screenH(), startH + dy));
-        sheet.style.height = h + 'px';
-      }
-      function up() {
+        const y = e.touches[0].clientY;
+        const dy = startY - y;                 // finger up = positive
+        if (!decided) {
+          if (Math.abs(dy) < _DRAG_THRESHOLD) return;   // sub-threshold → let taps / long-press through
+          const up = dy > 0;
+          const atMax = startH >= _maxH() - 2;
+          const atMin = startH <= _minH() + 2;
+          const contentTop = body.scrollTop <= 0;
+          if (up) mode = atMax ? 'content' : 'sheet';
+          else mode = (!contentTop) ? 'content' : (atMin ? 'refresh' : 'sheet');
+          decided = true;
+        }
+        if (mode === 'content') return;        // native scroll owns the gesture (momentum intact)
+        if (mode === 'sheet') {
+          e.preventDefault();
+          _applyHeight((startH + dy) / _screenH(), false);   // clamped to [min,max]
+          return;
+        }
+        if (mode === 'refresh') {
+          e.preventDefault();
+          pull = Math.max(0, y - startY);
+          _setPtr(pull, pull >= _PTR_TRIGGER, false);
+          return;
+        }
+      }, { passive: false });
+
+      function end() {
         if (!dragging) return;
         dragging = false;
-        const frac = sheet.getBoundingClientRect().height / _screenH();
-        _applySnap(_nearestSnap(frac), true);
+        if (mode === 'refresh') {
+          if (pull >= _PTR_TRIGGER && !_refreshing) _triggerRefresh();
+          else _resetPtr(true);
+        }
+        mode = null; decided = false;
       }
+      sheet.addEventListener('touchend', end);
+      sheet.addEventListener('touchcancel', end);
 
-      // Touch
-      handle.addEventListener('touchstart', e => { down(e.touches[0].clientY); }, { passive: true });
-      handle.addEventListener('touchmove', e => { move(e.touches[0].clientY); }, { passive: true });
-      handle.addEventListener('touchend', up);
-      handle.addEventListener('touchcancel', up);
-      // Mouse (desktop)
-      handle.addEventListener('mousedown', e => { down(e.clientY); e.preventDefault(); });
-      window.addEventListener('mousemove', e => move(e.clientY));
-      window.addEventListener('mouseup', up);
+      // Mouse: simple handle-drag to move the sheet (desktop convenience only).
+      let mDown = false, mStartY = 0, mStartH = 0;
+      handle.addEventListener('mousedown', e => {
+        mDown = true; mStartY = e.clientY; mStartH = sheet.getBoundingClientRect().height;
+        sheet.style.transition = 'none'; e.preventDefault();
+      });
+      window.addEventListener('mousemove', e => {
+        if (!mDown || _destroyed) return;
+        _applyHeight((mStartH + (mStartY - e.clientY)) / _screenH(), false);
+      });
+      window.addEventListener('mouseup', () => { mDown = false; });
     }
 
     // ── Public page API ─────────────────────────────────────────────────────
@@ -160,7 +236,7 @@ const MapSheetTemplate = (function () {
       if (_mounted) return api;
       _mounted = true;
       (parent || document.body).appendChild(root);
-      _applySnap(sheetCfg.initial, false);
+      _applyHeight(sheetCfg.initial, false);
       _initDrag();
       requestAnimationFrame(() => root.classList.add('ms-open'));
       // Hand the map element to the consumer — ONE time. The consumer builds the
@@ -207,7 +283,7 @@ const MapSheetTemplate = (function () {
       getSheetBody: () => body,
       getOverlay: () => overlay,
       // sheet control
-      snapTo: (frac) => _applySnap(frac, true),
+      snapTo: (frac) => _applyHeight(frac, true),
       getSnap: () => _currentSnap,
       mount, unmount, setVisible,
       isDestroyed: () => _destroyed,

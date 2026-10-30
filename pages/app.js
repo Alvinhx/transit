@@ -39,6 +39,11 @@ const AppShell = (function () {
   let _toggle = null;
   let _stationReady = false;   // StationPage has been mounted at least once
   let _started = false;
+  // History-based back (step B): station mode is one "back level" — entering it
+  // pushes a history entry so a back (swipe / Back button) returns to Nearby.
+  // See _goStation / _goNearby / _onPopState.
+  let _stationPushed = false;
+  let _pickerDismissible = true;
 
   // ── Station resolution ──────────────────────────────────────────────────────
 
@@ -67,6 +72,7 @@ const AppShell = (function () {
    */
   function _openPicker(dismissible) {
     if (typeof StationPicker === 'undefined') return false;
+    _pickerDismissible = (dismissible !== false); // back closes a dismissible picker; absorbs for first-run
     StationPicker.open({
       dismissible: dismissible !== false,
       // Selecting a station IS setting it as the default.
@@ -129,6 +135,48 @@ const AppShell = (function () {
     }
   }
 
+  // ── History-based back (step B) ─────────────────────────────────────────────
+  // Enter station mode → push ONE entry; a back pops it → return to Nearby.
+  // Detail (step A) owns its own entry on top, so a back from a detail opened
+  // over station closes the detail first, then the next back returns to Nearby.
+  // Station CHANGES don't push (back goes to home, not through prior stations).
+  function _goStation() {
+    ViewMode.set(ViewMode.STATION);
+    _applyMode(ViewMode.STATION);
+    if (!_stationPushed) {
+      try { history.pushState({ lvl: 'station' }, ''); _stationPushed = true; } catch (e) {}
+    }
+    _syncChrome();
+  }
+  function _goNearby() {
+    // If a station entry is on the stack, go BACK so the popstate path does the
+    // switch (keeps history balanced); otherwise switch directly.
+    if (_stationPushed) { try { history.back(); return; } catch (e) {} }
+    ViewMode.set(ViewMode.NEARBY);
+    _applyMode(ViewMode.NEARBY);
+    _syncChrome();
+  }
+  function _onPopState() {
+    // Detail (step A) owns the top entry — let detail's own handler close it.
+    if (typeof DetailPage !== 'undefined' && DetailPage.isOpen && DetailPage.isOpen()) return;
+    // Back while the station picker is up: the back consumed the station entry,
+    // so re-arm it, and close the picker (unless it's the non-dismissible
+    // first-run picker, which requires a choice).
+    if (typeof StationPicker !== 'undefined' && StationPicker.isOpen && StationPicker.isOpen()) {
+      if (_stationPushed) { try { history.pushState({ lvl: 'station' }, ''); } catch (e) {} }
+      if (_pickerDismissible) { try { StationPicker.close(); } catch (e) {} _syncChrome(); }
+      return;
+    }
+    // Otherwise a back popped the station entry → return to Nearby.
+    if (_stationPushed && ViewMode.get() === ViewMode.STATION) {
+      _stationPushed = false;
+      ViewMode.set(ViewMode.NEARBY);
+      _applyMode(ViewMode.NEARBY);
+      if (_toggle) _toggle.setValue(ViewMode.NEARBY);
+      _syncChrome();
+    }
+  }
+
   /** Push current app state into the chrome (toggle value + visibility). */
   function _syncChrome() {
     if (!_toggle) return;
@@ -176,12 +224,15 @@ const AppShell = (function () {
         { id: ViewMode.NEARBY, label: 'Nearby', icon: 'near_me' },
         { id: ViewMode.STATION, label: 'Station', icon: 'departure_board' },
       ],
-      onChange: (mode) => { ViewMode.set(mode); _applyMode(mode); _syncChrome(); },
+      onChange: (mode) => { if (mode === ViewMode.STATION) _goStation(); else _goNearby(); },
     });
     _toggle.mount(document.body);
 
-    // Restore the last-used mode.
-    if (ViewMode.get() === ViewMode.STATION) _applyMode(ViewMode.STATION);
+    // Restore the last-used mode. _goStation (not bare _applyMode) so a back
+    // entry is pushed → a back returns to Nearby even on a station-default boot.
+    if (ViewMode.get() === ViewMode.STATION) _goStation();
+    // Back button / swipe → pop station mode back to Nearby (step B).
+    window.addEventListener('popstate', _onPopState);
     _syncChrome();
   }
 
@@ -189,8 +240,8 @@ const AppShell = (function () {
 
   /** Programmatic switch (same path as tapping the toggle). */
   function setMode(mode) {
-    if (ViewMode.set(mode)) { _applyMode(mode); }
-    _syncChrome();
+    if (mode === ViewMode.STATION) _goStation();
+    else _goNearby();
   }
 
   return { start, getMode, setMode, onDetailOpen, onDetailClose, openStationPicker: _openPicker };
