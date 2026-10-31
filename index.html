@@ -79,6 +79,9 @@
       const boot = document.getElementById('boot');
       if (boot) boot.remove();
       AppShell.start();
+      // Pills count down between the 20 s live polls (re-computed from their stored
+      // times every 5 s — no requests; see lib/ui/eta-pill.js).
+      if (typeof EtaPill !== 'undefined' && EtaPill.startTicker) EtaPill.startTicker(5000);
       // Version-gated "What's New" — shows once per version bump, over the app.
       if (typeof WhatsNew !== 'undefined') { try { WhatsNew.show(); } catch (e) {} }
     })();

@@ -132,7 +132,12 @@ const DetailPage = (function () {
     const dirName = _state.direction ? _state.direction.name : (_state.cardData ? _state.cardData.headsign : '');
     if (dirLabel) dirLabel.textContent = dirName || 'Route';
     if (stopLabel && nearest) stopLabel.textContent = `Next from ${nearest.name || 'nearby stop'}`;
-    if (!etas || !etas.length) { pills.innerHTML = '<span style="color:var(--dim);font-size:13px">No upcoming departures</span>'; return; }
+    _state.etaShown = !!(etas && etas.length);
+    if (!etas || !etas.length) {
+      const next = _nextDepartureText();
+      pills.innerHTML = `<span style="color:var(--dim);font-size:13px">${next || 'No upcoming departures'}</span>`;
+      return;
+    }
     pills.innerHTML = etas.slice(0, 3).map((e, i) => EtaPill.html({ eta: e, idx: i, size: 'detail' })).join('');
   }
   // Instant seed so the readout is never blank on open: the card's ETAs (exactly
@@ -142,12 +147,34 @@ const DetailPage = (function () {
     if (!_state) return;
     const c = _state.cardData;
     if (c && c.etas && c.etas.length) { _renderEtaPills(c.etas); return; }
-    if (_state.nearestStopId && _state.direction && typeof TransitStore !== 'undefined') {
-      const times = TransitStore.getScheduleForStop(_state.routeId, _state.direction.name, _state.nearestStopId) || [];
-      const now = Date.now();
-      const etas = times.filter(t => t > now).slice(0, 3).map(ms => ({ ms, live: false }));
-      if (etas.length) _renderEtaPills(etas);
-    }
+    const etas = _composeDetailEtas();
+    if (etas.length) _renderEtaPills(etas);
+  }
+  // Stored timetable for the anchored stop in THIS direction (ascending epoch-ms,
+  // re-based onto today by TransitStore). [] when nothing is stored yet.
+  function _scheduleTimes() {
+    if (!_state || !_state.nearestStopId || !_state.direction || typeof TransitStore === 'undefined') return [];
+    return TransitStore.getScheduleForStop(_state.routeId, _state.direction.name, _state.nearestStopId) || [];
+  }
+  // Schedule-first pills (same rule as the board): live ETAs first, then stored
+  // times that come >3 min after the last live ETA fill the remaining slots.
+  // Only times inside the 90-min card display window are used.
+  function _composeDetailEtas() {
+    const now = Date.now();
+    const sched = _scheduleTimes().filter(t => t > now && t <= now + 90 * 60000);
+    const live = (_state && _state.liveEtas) || [];
+    if (typeof StopFeed !== 'undefined' && StopFeed.mergeEtas) return StopFeed.mergeEtas(live, sched);
+    return live.length ? live : sched.slice(0, 3).map(ms => ({ ms, live: false }));
+  }
+  // Shown when no departure falls in the window: the next one (usually tomorrow).
+  function _nextDepartureText() {
+    if (!_state || !_state.direction || typeof TransitStore === 'undefined') return '';
+    const now = Date.now();
+    let t = _scheduleTimes().find(x => x > now);
+    let tomorrow = false;
+    if (!t && TransitStore.getNextDayFirst) { t = TransitStore.getNextDayFirst(_state.routeId, _state.direction.name, _state.nearestStopId); tomorrow = true; }
+    if (!t || typeof TransitCard === 'undefined' || !TransitCard.formatTime) return '';
+    return `Next departure ${TransitCard.formatTime(t)}${tomorrow ? ' (tomorrow)' : ''}`;
   }
   // Real-time ETAs for the anchored stop, from the SAME source the board uses —
   // arrivals-and-departures-for-stop (real per-stop predictions) filtered to this
@@ -155,22 +182,47 @@ const DetailPage = (function () {
   // trips-for-route schedule+deviation approximation (a regression from the
   // "one poll drives vehicles + ETAs" rebuild). Runs on the live feed's 20s tick,
   // which fixes the original "ETAs never refresh" bug while keeping them accurate.
+  // The card you tapped already fixed the direction (_state.direction), but this
+  // request is per STOP, and a stop can serve both directions of a route (e.g. the
+  // First Hill streetcar stop) — so keep only arrivals that belong to THIS direction.
+  // Uses the same headsign → direction match the cards group by, so the pills agree
+  // with the card. An arrival with no headsign, or one we can't classify, is kept.
+  function _arrivalMatchesDirection(a) {
+    const dir = _state && _state.direction;
+    if (!dir || !a.tripHeadsign || typeof TransitStore === 'undefined') return true;
+    const d = TransitStore.getDirection(_state.routeId, a.tripHeadsign);
+    return !d || d === dir || d.name === dir.name;
+  }
   async function _refreshStopEtas() {
     if (!_state) return;
     const stopId = _state.nearestStopId;
     if (!stopId || typeof stopId !== 'string' || !stopId.includes('_')) return;
     if (typeof TransitAPI === 'undefined' || !TransitAPI.fetchArrivalsForStop) return;
+    // One cheap call (once per anchor stop) so the timetable fill works quickly
+    // without waiting on the route-wide warm.
+    if (_state._warmedStop !== stopId && typeof ScheduleCache !== 'undefined' && ScheduleCache.ensureStop) {
+      _state._warmedStop = stopId;
+      ScheduleCache.ensureStop(stopId).then(n => {
+        if (n && _state && _state.nearestStopId === stopId) _renderEtaPills(_composeDetailEtas());
+      }).catch(() => {});
+    }
     let j;
-    try { j = await TransitAPI.fetchArrivalsForStop(stopId); } catch (e) { return; }
+    try { j = await TransitAPI.fetchArrivalsForStop(stopId); }
+    catch (e) {
+      // Live failed: timetable stands in, but never overwrite pills already shown.
+      if (_state && _state.nearestStopId === stopId && !_state.etaShown) _renderEtaPills(_composeDetailEtas());
+      return;
+    }
     if (!_state || _state.nearestStopId !== stopId) return; // page closed or anchor changed while fetching
     const now = Date.now();
     const list = (j && j.data && j.data.entry && j.data.entry.arrivalsAndDepartures) || [];
     const etas = list
-      .filter(a => a.routeId === _state.routeId)
+      .filter(a => a.routeId === _state.routeId && _arrivalMatchesDirection(a))
       .map(a => ({ ms: a.predictedDepartureTime || a.scheduledDepartureTime || 0, live: !!a.predictedDepartureTime }))
       .filter(a => a.ms > now - 30000)
       .sort((a, b) => a.ms - b.ms);
-    _renderEtaPills(etas);
+    _state.liveEtas = etas;
+    _renderEtaPills(_composeDetailEtas());
   }
 
   // ── Vehicle markers from a LiveFeed snapshot ───────────────────────────────
@@ -200,10 +252,30 @@ const DetailPage = (function () {
     marker._raf = requestAnimationFrame(step);
   }
 
+  function _vehicleKey(v) { return String(v.vehicleId || v.tripId || (v.lat + ',' + v.lon)); }
+
+  // Does this vehicle belong to the direction being displayed?
+  //  - Normal directions carry the OBA directionId → compare it.
+  //  - BRANCH / LIMITED-SERVICE directions (e.g. Route 49 "3rd & Jackson", the
+  //    Route 11 / Link 40_97 split directions) have NO directionId in
+  //    routes-data.json, so the old check silently passed every bus in BOTH
+  //    directions. For those, resolve the vehicle's headsign to a stored
+  //    direction with the same word-match the cards use (TransitStore.getDirection)
+  //    and require it to be THIS direction.
+  function _vehicleMatchesDirection(v) {
+    const dir = _state.direction;
+    if (!dir) return true;
+    const vDir = v.directionId;
+    const vKnown = vDir !== undefined && vDir !== null && vDir !== '';
+    if (dir.directionId != null) return !vKnown || String(vDir) === String(dir.directionId);
+    if (!v.tripHeadsign || typeof TransitStore === 'undefined') return true;   // can't classify → keep
+    const d = TransitStore.getDirection(_state.routeId, v.tripHeadsign);
+    return !d || d === dir || d.name === dir.name;
+  }
+
   function _renderVehicles(snapshot) {
     if (!_state || !_state.map) return;
     const markers = _state.vehicleMarkers; // { id -> L.marker }
-    const currentDirId = _state.direction ? _state.direction.directionId : null;
     const mode = _state.cardData ? _state.cardData.mode : 'bus';
     // Shared mapping — the local copy this replaced rendered the MONORAIL as a
     // bus, since it only special-cased rail and streetcar.
@@ -212,11 +284,13 @@ const DetailPage = (function () {
       : (mode === 'rail' ? 'train' : mode === 'streetcar' ? 'tram' : 'directions_bus');
     const color = _upcomingColor();
 
-    const seen = new Set();
+    const seen = new Set();      // vehicles we are DISPLAYING this tick
+    const present = new Set();   // every vehicle in the snapshot (shown or filtered)
     (snapshot.vehicles || []).forEach(v => {
       if (!v.lat && !v.lon) return;
-      if (currentDirId != null && v.directionId !== undefined && String(v.directionId) !== String(currentDirId)) return;
-      const id = String(v.vehicleId || v.tripId || (v.lat + ',' + v.lon));
+      present.add(_vehicleKey(v));
+      if (!_vehicleMatchesDirection(v)) return;
+      const id = _vehicleKey(v);
       seen.add(id);
       const existing = markers[id];
       if (existing) {
@@ -236,12 +310,15 @@ const DetailPage = (function () {
       }
     });
 
-    // Drop vehicles absent for too many consecutive polls (grace against a
-    // single-poll OBA dropout, which otherwise blinked the bus off then on).
+    // Remove markers no longer shown. Two cases:
+    //  - still in the snapshot but now FILTERED (direction flipped at a terminal,
+    //    stale, wrong direction) → remove IMMEDIATELY, it's deliberately hidden;
+    //  - absent from the snapshot entirely → keep through a short grace
+    //    (a single-poll OBA dropout would otherwise blink the bus off then on).
     Object.keys(markers).forEach(id => {
       if (seen.has(id)) return;
       const m = markers[id];
-      m._miss = (m._miss || 0) + 1;
+      m._miss = present.has(id) ? _VEHICLE_MISS_LIMIT : (m._miss || 0) + 1;
       if (m._miss >= _VEHICLE_MISS_LIMIT) {
         if (m._raf) cancelAnimationFrame(m._raf);
         _state.map.removeLayer(m);
@@ -631,12 +708,12 @@ const DetailPage = (function () {
     const originStop = _originStopIfStation();
     if (originStop) {
       _state.nearestStopId = originStop.stopId;
+      _renderStopList();     // spine: passed collapse + current stop now known
       _drawRoute();          // current-stop styling on the origin
       _updateUserDot();      // GPS dot still shown when known (connector hidden when far)
       _updateOriginDot();    // violet dot on the origin when GPS is far
       _frameToFocus();       // focus point = origin when GPS far/unknown, else GPS
       _state._framed = true; // fixed anchor — don't let GPS ticks re-frame
-      if (_state.feed) _state.feed.setStops([originStop.stopId]);
       return;
     }
 
@@ -644,11 +721,11 @@ const DetailPage = (function () {
     if (lat != null && _state.direction && typeof findNearestStop === 'function') {
       const stops = _state.allStops.map(s => ({ stopId: s.stopId, ...s }));
       _state.nearestStopId = findNearestStop(lat, lon, stops);
+      _renderStopList();  // spine: passed collapse + current stop now known
       _drawRoute();       // redraw with upcoming overlay + passed/current stop styling now nearest is known
       _updateUserDot();
       _frameToFocus();
       _state._framed = true; // Phase 3 focus done — don't re-fit on later GPS ticks
-      if (_state.feed) _state.feed.setStops(_state.nearestStopId ? [_state.nearestStopId] : []);
     } else {
       // No GPS yet — fit whole route as a placeholder (NOT counted as framed, so
       // when GPS arrives we upgrade to the upper-2/3 focus view).
@@ -660,7 +737,6 @@ const DetailPage = (function () {
   function _startFeed() {
     _state.feed = LiveFeed.create({
       routeId: _state.routeId,
-      directionName: _state.direction ? _state.direction.name : null,
       intervalMs: 20000,
     });
     _state.unsubFeed = _state.feed.onUpdate((snap) => {
@@ -669,7 +745,7 @@ const DetailPage = (function () {
       _refreshStopEtas(); // real-time ETAs from arrivals-for-stop on each 20s tick
       _renderAlertBadge(snap);
     });
-    _state.feed.start(_state.nearestStopId ? [_state.nearestStopId] : []);
+    _state.feed.start();
   }
 
   // Ensure this route's full-day schedule is cached for today's day type.
@@ -680,12 +756,75 @@ const DetailPage = (function () {
     return ScheduleCache.ensure(routeId);
   }
 
+  // ── Stop list — coloured-spine design (ported from v6 _renderStopList) ───────
+  // Passed stops (before your nearest stop) collapse behind a "Show N passed stops"
+  // button; the nearest stop gets a large dot + bold name; upcoming stops follow.
+  // Dot colours are v6's per-route "dot" tones (e.g. 1 Line green is #22C55E, not
+  // the map's darker #328f23).
+  const _STOP_DOT = {
+    '#3DAE2B': '#22C55E', '#00A0DF': '#0080b2', '#FDB71A': '#dfa117', '#9C182F': '#891428',
+    '#2B376E': '#263061', '#E5007D': '#ca006e', '#F47836': '#d1651d', '#666672': '#5a5a65',
+    '#F24C21': '#b25619', '#006CFF': '#005fe0', '#0070C0': '#005fe0',
+  };
+  function _hexToRgba(hex, a) {
+    const m = /^#?([0-9a-f]{6})$/i.exec(hex || '');
+    if (!m) return hex;
+    const n = parseInt(m[1], 16);
+    return `rgba(${(n >> 16) & 255}, ${(n >> 8) & 255}, ${n & 255}, ${a})`;
+  }
+  function _escHtml(s) {
+    return String(s == null ? '' : s).replace(/[&<>"]/g, c => ({ '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;' }[c]));
+  }
+  function _stopListColors() {
+    const color = String((_state.cardData && _state.cardData.color) || '#22C55E');
+    const key = color.toUpperCase();
+    const dot = _STOP_DOT[key] || color;
+    const light = (typeof RouteTones !== 'undefined') ? RouteTones.isLight() : false;
+    // Upcoming track: the route's pastel card tone on light; a translucent dot tint
+    // on dark (the dark card tones are too close to the sheet surface to read).
+    const lineUp = light
+      ? ((typeof RouteTones !== 'undefined' && RouteTones.has(key)) ? RouteTones.for(key, 'light').card : _hexToRgba(dot, 0.18))
+      : _hexToRgba(dot, 0.28);
+    return { dot, lineUp, linePassed: light ? '#E2E8F0' : '#2d333b' };
+  }
   function _renderStopList() {
     const el = document.getElementById('dp-stops');
-    if (!el) return;
+    if (!el || !_state) return;
     const stops = _state.allStops;
     if (!stops.length) { el.innerHTML = '<div class="dp-error">No stops.</div>'; return; }
-    el.innerHTML = stops.map(s => `<div style="padding:10px 0;border-bottom:1px solid var(--border);font-size:14px;color:var(--text)">${s.name || s.stopId}</div>`).join('');
+    const c = _stopListColors();
+    el.style.setProperty('--dps-dot', c.dot);
+    el.style.setProperty('--dps-line-up', c.lineUp);
+    el.style.setProperty('--dps-line-passed', c.linePassed);
+
+    const nearestIdx = stops.findIndex(s => s.stopId === _state.nearestStopId);
+    const passed = nearestIdx > 0 ? stops.slice(0, nearestIdx) : [];
+    const ahead = nearestIdx >= 0 ? stops.slice(nearestIdx) : stops;   // no anchor yet → all upcoming
+    const open = !!_state.passedOpen;
+    const row = (s, state, hasPassed) =>
+      `<div class="dps-row dps-row--${state}${state === 'current' && hasPassed ? ' dps-has-passed' : ''}" data-stop-id="${_escHtml(s.stopId)}">` +
+        `<div class="dps-spine"><div class="dps-dot dps-dot--${state}"></div></div>` +
+        `<div class="dps-content"><div class="dps-name">${_escHtml(s.name || s.stopId)}</div></div>` +
+      `</div>`;
+    const label = n => open ? '\u2193 Hide passed stops' : `\u2191 Show ${n} passed stop${n > 1 ? 's' : ''}`;
+
+    let html = '<div class="dps-wrap">';
+    if (passed.length) {
+      html += `<div class="dps-row dps-row--passed"><div class="dps-spine"><div class="dps-dot dps-dot--passed"></div></div>` +
+              `<div class="dps-content"><button type="button" class="dps-show-passed" id="dps-toggle">${label(passed.length)}</button></div></div>`;
+      html += `<div class="dps-passed-group"${open ? '' : ' style="display:none"'}>${passed.map(s => row(s, 'passed', false)).join('')}</div>`;
+    }
+    ahead.forEach((s, i) => { html += row(s, (nearestIdx >= 0 && i === 0) ? 'current' : 'upcoming', passed.length > 0); });
+    html += '</div>';
+    el.innerHTML = html;
+
+    const btn = document.getElementById('dps-toggle');
+    if (btn) btn.addEventListener('click', () => {
+      _state.passedOpen = !_state.passedOpen;
+      const grp = el.querySelector('.dps-passed-group');
+      if (grp) grp.style.display = _state.passedOpen ? '' : 'none';
+      btn.textContent = _state.passedOpen ? '\u2193 Hide passed stops' : `\u2191 Show ${passed.length} passed stop${passed.length > 1 ? 's' : ''}`;
+    });
   }
 
   function _renderStopsError(msg) {

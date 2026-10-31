@@ -134,9 +134,10 @@ const HomePage = (function () {
    * Deriving the target from SHEET_INITIAL keeps the dot centred no matter the
    * default sheet height.
    */
-  function _centerOnUser() {
+  function _centerOnUser(lat, lon) {
     if (!_state || !_state.map) return;
-    const lat = AppState.userLat, lon = AppState.userLon;
+    // Optional coords let us centre on the REMEMBERED location before any GPS fix.
+    if (lat == null) { lat = AppState.userLat; lon = AppState.userLon; }
     if (lat == null) return;
     const map = _state.map;
     map.setView([lat, lon], 15, { animate: false });
@@ -204,10 +205,13 @@ const HomePage = (function () {
     if (!_state || !_state.map) return;
     const map = _state.map;
     const pts = [];
-    if (AppState.userLat != null) pts.push([AppState.userLat, AppState.userLon]);
+    // 'me' = the live fix, or the REMEMBERED location while we're still waiting for the first fix.
+    const me = AppState.userLat != null ? [AppState.userLat, AppState.userLon]
+             : (_state.prevLoc ? [_state.prevLoc.lat, _state.prevLoc.lon] : null);
+    if (me) pts.push(me);
     const sm = _state.stopMarkers || {};
     for (const id in sm) { const ll = sm[id].getLatLng(); pts.push([ll.lat, ll.lng]); }
-    if (pts.length < 2) { _centerOnUser(); return; }
+    if (pts.length < 2) { _centerOnUser(me ? me[0] : null, me ? me[1] : null); return; }
     const h = map.getSize().y;
     const sheetPx = Math.round(h * SHEET_INITIAL);
     map.fitBounds(L.latLngBounds(pts), {
@@ -219,11 +223,38 @@ const HomePage = (function () {
   }
 
   // ── Feed ────────────────────────────────────────────────────────────────────
-  function _startFeed(lat, lon) {
-    if (!_state || _state.feed) return;
+  // Remembered location (home only): the board opens on WHERE YOU WERE LAST while
+  // the first GPS fix is still pending, painted from the stored timetable.
+  const LASTLOC_KEY = 'mn.lastloc.v1';
+  function _loadPrevLoc() {
+    try {
+      const j = JSON.parse(localStorage.getItem(LASTLOC_KEY));
+      if (j && isFinite(j.lat) && isFinite(j.lon)) return { lat: +j.lat, lon: +j.lon };
+    } catch (e) {}
+    return null;
+  }
+  function _savePrevLoc(lat, lon) {
+    if (lat == null || !_state) return;
+    // GPS fires often — write only when we've moved ~50 m or it's been a minute.
+    const now = Date.now(), s = _state._saved;
+    if (s && now - s.t < 60000 && Math.abs(s.lat - lat) < 0.0005 && Math.abs(s.lon - lon) < 0.0005) return;
+    _state._saved = { lat, lon, t: now };
+    try { localStorage.setItem(LASTLOC_KEY, JSON.stringify({ lat, lon, t: now })); } catch (e) {}
+  }
+
+  // Create the feed + subscribe, WITHOUT starting it. paintFromSchedule() on an
+  // unstarted feed gives the instant timetable board; start()/setLocation() later
+  // begins live polling.
+  function _ensureFeed() {
+    if (!_state) return null;
+    if (_state.feed) return _state.feed;
     _state.feed = StopFeed.create({ radius: NEARBY_RADIUS_M, intervalMs: 20000 });
+    // Resuming after the detail page: hand the new feed the board already on screen
+    // so it doesn't flash back to schedule-only before live data returns.
+    if (_state.lastSnap) _state.feed.seed(_state.lastSnap);
     _state.unsubFeed = _state.feed.onUpdate(snap => {
       if (!_state) return;
+      _state.lastSnap = snap;
       _renderCards(snap);
       _updateStopMarkers(snap.cards);
       // Frame the cluster once, on the first tick that actually has stops — then
@@ -233,7 +264,16 @@ const HomePage = (function () {
         _state._framed = true;
       }
     });
-    _state.feed.start(lat, lon);
+    return _state.feed;
+  }
+  function _startFeed(lat, lon) {
+    if (!_state) return;
+    const fresh = !_state.feed;
+    const feed = _ensureFeed();
+    // Fresh feed: start (schedule paint, then live). Existing feed — either painted
+    // from the remembered location and not started yet, or already running:
+    // setLocation() starts it / moves it.
+    if (fresh) feed.start(lat, lon); else feed.setLocation(lat, lon);
   }
 
   /** Pause/resume home's nearby poll so we don't spend calls while the detail
@@ -295,9 +335,13 @@ const HomePage = (function () {
           _state.locCb = AppState.onLocationUpdate(() => {
             if (!_state || !_state.map) return;
             const first = !_state._centred;
+            _savePrevLoc(AppState.userLat, AppState.userLon);
             _updateUserDot(first);
             if (first) {
               _state._centred = true;
+              // The first real fix: re-frame the map + list around where you are NOW
+              // (it may differ from the remembered location the board opened on).
+              _state._framed = false;
               _startFeed(AppState.userLat, AppState.userLon);
             } else if (_state.feed) {
               _state.feed.setLocation(AppState.userLat, AppState.userLon);
@@ -309,6 +353,16 @@ const HomePage = (function () {
             _state._centred = true;
             _updateUserDot(true);
             _startFeed(AppState.userLat, AppState.userLon);
+          } else {
+            // No fix yet: open on the PREVIOUS location with the board built from the
+            // stored timetable (grey scheduled times) instead of an empty screen. The
+            // first real fix then moves the map and refreshes the list (locCb above).
+            const prev = _loadPrevLoc();
+            if (prev) {
+              _state.prevLoc = prev;
+              _centerOnUser(prev.lat, prev.lon);
+              _ensureFeed().paintFromSchedule(prev.lat, prev.lon);
+            }
           }
         },
         // Re-shown after being hidden by the mode toggle — nudge Leaflet in case
@@ -354,7 +408,9 @@ const HomePage = (function () {
     if (AppState.userLat == null && AppState.requestLocation) {
       AppState.requestLocation(() => {}, () => {
         const host = document.getElementById('hm-cards');
-        if (host) host.innerHTML = '<div class="dp-loading">Location access is needed to show nearby transit.</div>';
+        // Keep a board already painted from the remembered location; only show the
+        // message when there is nothing on screen.
+        if (host && !(_state && _state.cards && _state.cards.length)) host.innerHTML = '<div class="dp-loading">Location access is needed to show nearby transit.</div>';
       });
     }
     return page;

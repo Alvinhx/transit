@@ -160,6 +160,42 @@
 
 .dp-divider { height: 1px; background: var(--border, rgba(255, 255, 255, 0.08)); margin: 10px 0; }
 .dp-stops-wrap { }
+/* ── Route stop list — coloured-spine design (ported from v6 route-detail) ──────
+   Vars set per route in detail.js: --dps-dot (stop dots / current dot),
+   --dps-line-up (upcoming track), --dps-line-passed (passed track). The track is a
+   14px pill behind the dots; first/last rows round its ends. */
+.dps-wrap { padding: 4px 0 16px; }
+.dps-row { display: flex; align-items: stretch; min-height: 44px; position: relative; }
+.dps-spine { display: flex; flex-direction: column; align-items: center; width: 36px; flex: 0 0 auto; position: relative; }
+.dps-spine::before {
+  content: ''; position: absolute; top: 0; bottom: 0; left: 50%; width: 14px;
+  transform: translateX(-50%); background: var(--dps-line-up, #DAF4D6);
+}
+.dps-row:first-child .dps-spine::before { border-radius: 7px 7px 0 0; }
+.dps-row:last-child .dps-spine::before { border-radius: 0 0 7px 7px; }
+.dps-row:first-child:last-child .dps-spine::before { border-radius: 7px; }
+.dps-passed-group .dps-row:first-child .dps-spine::before,
+.dps-passed-group .dps-row:last-child .dps-spine::before { border-radius: 0; }  /* continuous inside the passed group */
+.dps-row--passed .dps-spine::before { background: var(--dps-line-passed, #E2E8F0); }
+/* Current stop: grey (passed) track above the dot, route-coloured track below it. */
+.dps-row--current.dps-has-passed .dps-spine::after {
+  content: ''; position: absolute; top: 0; left: 50%; width: 14px; height: 50%;
+  transform: translateX(-50%); background: var(--dps-line-passed, #E2E8F0);
+}
+.dps-dot { width: 10px; height: 10px; border-radius: 50%; flex: 0 0 auto; position: relative; z-index: 1; margin: auto 0; background: var(--dps-dot, #22C55E); }
+.dps-dot--passed { background: #8B949E; }
+.dps-dot--current { width: 18px; height: 18px; z-index: 2; box-shadow: 0 0 0 3px var(--surface, #fff); }
+.dps-content { flex: 1 1 auto; min-width: 0; padding: 8px 0 8px 12px; display: flex; flex-direction: column; justify-content: center; }
+.dps-name { font-size: 15px; line-height: 1.4; color: var(--dim, #64748B); }
+.dps-row--current .dps-name { font-size: 18px; font-weight: 700; color: var(--text); }
+.dps-row--passed .dps-name { font-size: 14px; color: #8B949E; }
+.dps-show-passed {
+  display: inline-flex; align-items: center; width: fit-content;
+  background: var(--surface-menu, #1e252e); border: 1px solid var(--border);
+  border-radius: 14px; padding: 5px 14px; font-size: 11px; color: var(--dim);
+  cursor: pointer; font-family: var(--font-sans);
+}
+.dps-show-passed:hover { color: var(--text); border-color: var(--dim); }
 .dp-loading, .dp-error { color: var(--dim, #7a7a85); font-size: 14px; padding: 12px 0; }
 
 /* ── List page template ───────────────────────────────────────────────────── */
@@ -256,7 +292,9 @@
 .lp-title-btn:hover .lp-title-chev { color: var(--text, #f0f0f2); }
 
 /* Card list inside a list page: last card must clear the floating mode toggle. */
-.lp-body.hm-cards { padding-bottom: 96px; }
+.lp-body.hm-cards { padding-bottom: 96px; padding-left: 8px; padding-right: 8px; } /* card stack: 8px sides like v6 mobile (.results{padding:8px}) — 16px made cards too narrow */
+/* Home sheet's card list: same 8px sides. Scoped by id so the detail sheet (stop list) keeps its 16px. */
+#hm-sheet .ms-sheet-body { padding-left: 8px; padding-right: 8px; }
 
 /* ── Alert rows (consumer of the List template) ───────────────────────────── */
 .al-row { display: flex; gap: 12px; align-items: flex-start; }

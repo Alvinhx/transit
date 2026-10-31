@@ -121,8 +121,13 @@ const StationPage = (function () {
       sortBy: 'eta',
       stopIds: st.stopIds,
     });
+    // Resuming after the detail page: give the new feed the board already on screen,
+    // so it doesn't flash back to a schedule-only paint before live data returns.
+    // (setStation clears lastSnap — a different station must not inherit it.)
+    if (_state.lastSnap) _state.feed.seed(_state.lastSnap);
     _state.unsubFeed = _state.feed.onUpdate(snap => {
       if (!_state) return;
+      _state.lastSnap = snap;
       _renderCards(snap);
       // First real data: seed the global pin list once from this station's
       // suggested routes, so a new user doesn't start with an empty board.
@@ -157,6 +162,7 @@ const StationPage = (function () {
     pauseFeed();
     _state.station = station;
     _state.cards = [];
+    _state.lastSnap = null;
     _state.page.setTitle(station.name);
     const host = _state.page.getBody();
     if (host) host.innerHTML = '<div class="dp-loading">Loading departures…</div>';
