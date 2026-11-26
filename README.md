@@ -58,7 +58,7 @@ Long-press any card to pin it to the top.
 v7 is a **static app** — it talks to the OneBusAway API directly from the browser, so the server only serves files (no backend/API).
 
 ```bash
-cd projects/live-transit/prod/Main
+cd projects/personal/live-transit/prod/Main
 node server.js            # serves http://localhost:8080  (pass a port arg to override)
 ```
 
@@ -75,7 +75,7 @@ The basemap uses [CARTO Basemaps](https://carto.com/basemaps), which require a f
 Route shapes and stops are pre-generated into `routes-data.json` (loaded at boot). Regenerate it whenever routes change (e.g. a seasonal service change):
 
 ```bash
-cd projects/live-transit/prod/Main
+cd projects/personal/live-transit/prod/Main
 node scripts/build-routes-data.js        # OBA + OSRM → routes-data.json (~5–10 min)
 ```
 
